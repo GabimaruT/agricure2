@@ -520,6 +520,12 @@ print("   POST /api/predict-image  — Image-based disease detection")
 print("   GET  /api/krushi-kendra  — Find nearest Krushi Kendra")
 print("   GET  /health             — Server status")
 
+@app.route('/')
+def index():
+    return app.send_static_file('index.html')
+
+app.static_folder = os.path.join(BASE_DIR, 'frontend')
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)

@@ -1,0 +1,236 @@
+{
+  "Tomato___Late_blight": {
+    "crop": "Tomato",
+    "natural_cure": "Bordeaux mixture (copper sulfate + lime). Remove infected plants. Apply wood ash around plants.",
+    "precaution": "Use resistant varieties. Avoid overhead watering. Monitor during cool wet weather.",
+    "severity_base": 65
+  },
+  "Tomato___Early_blight": {
+    "crop": "Tomato",
+    "natural_cure": "Neem oil spray (2ml/L every 7 days). Compost tea spray. Remove lower infected leaves.",
+    "precaution": "Mulch soil. Rotate crops every 3 years. Stake plants for airflow.",
+    "severity_base": 65
+  },
+  "Tomato___Bacterial_spot": {
+    "crop": "Tomato",
+    "natural_cure": "Copper soap spray. Hydrogen peroxide (3%) spray. Remove infected leaves.",
+    "precaution": "Use disease-free seeds. Avoid working with wet plants.",
+    "severity_base": 65
+  },
+  "Tomato___Septoria_leaf_spot": {
+    "crop": "Tomato",
+    "natural_cure": "Compost tea spray. Copper soap spray. Remove infected leaves immediately.",
+    "precaution": "Remove infected debris. Avoid wetting foliage. Stake plants.",
+    "severity_base": 65
+  },
+  "Tomato___Leaf_Mold": {
+    "crop": "Tomato",
+    "natural_cure": "Neem oil spray. Improve ventilation. Reduce humidity below 85%.",
+    "precaution": "Maintain humidity below 85%. Improve greenhouse ventilation.",
+    "severity_base": 65
+  },
+  "Tomato___Spider_mites Two-spotted_spider_mite": {
+    "crop": "Tomato",
+    "natural_cure": "Neem oil spray. Strong water spray to dislodge mites. Introduce predatory mites.",
+    "precaution": "Maintain humidity. Avoid dusty conditions.",
+    "severity_base": 65
+  },
+  "Tomato___Target_Spot": {
+    "crop": "Tomato",
+    "natural_cure": "Neem oil spray. Copper soap spray. Remove infected plant material.",
+    "precaution": "Avoid overhead irrigation. 2-3 year crop rotation.",
+    "severity_base": 65
+  },
+  "Tomato___Tomato_Yellow_Leaf_Curl_Virus": {
+    "crop": "Tomato",
+    "natural_cure": "Remove infected plants. Apply neem oil to control whitefly vector.",
+    "precaution": "Use virus-resistant varieties. Use reflective mulches to repel whitefly.",
+    "severity_base": 65
+  },
+  "Tomato___Tomato_mosaic_virus": {
+    "crop": "Tomato",
+    "natural_cure": "Remove and burn infected plants. Wash hands before handling plants.",
+    "precaution": "Disinfect tools with 10% bleach. Use resistant varieties.",
+    "severity_base": 65
+  },
+  "Tomato___healthy": {
+    "crop": "Tomato",
+    "natural_cure": "No treatment needed. Preventive neem oil spray monthly.",
+    "precaution": "Regular monitoring. Proper nutrition and irrigation.",
+    "severity_base": 0
+  },
+  "Potato___Late_blight": {
+    "crop": "Potato",
+    "natural_cure": "Bordeaux mixture. Wood ash. Remove and burn infected plants.",
+    "precaution": "Plant resistant varieties. Stop irrigation if detected.",
+    "severity_base": 65
+  },
+  "Potato___Early_blight": {
+    "crop": "Potato",
+    "natural_cure": "Neem oil spray. Compost tea. Remove infected lower leaves.",
+    "precaution": "Use certified seed potatoes. 3-year crop rotation.",
+    "severity_base": 65
+  },
+  "Potato___healthy": {
+    "crop": "Potato",
+    "natural_cure": "No treatment needed.",
+    "precaution": "Certified seed potatoes and regular monitoring.",
+    "severity_base": 0
+  },
+  "Corn_(maize)___Common_rust_": {
+    "crop": "Corn (maize)",
+    "natural_cure": "Baking soda spray (1 tsp/L). Neem oil spray.",
+    "precaution": "Plant rust-resistant hybrids. Early planting.",
+    "severity_base": 65
+  },
+  "Corn_(maize)___Northern_Leaf_Blight": {
+    "crop": "Corn (maize)",
+    "natural_cure": "Neem cake soil application. Trichoderma bio-fungicide.",
+    "precaution": "Use resistant varieties. Crop rotation.",
+    "severity_base": 65
+  },
+  "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot": {
+    "crop": "Corn (maize)",
+    "natural_cure": "Trichoderma spray. Remove infected crop debris.",
+    "precaution": "Improve air circulation. Use resistant varieties.",
+    "severity_base": 65
+  },
+  "Corn_(maize)___healthy": {
+    "crop": "Corn (maize)",
+    "natural_cure": "No treatment needed.",
+    "precaution": "Maintain proper spacing and nutrition.",
+    "severity_base": 0
+  },
+  "Apple___Apple_scab": {
+    "crop": "Apple",
+    "natural_cure": "Lime sulfur spray during dormant season. Neem oil spray. Remove fallen leaves.",
+    "precaution": "Plant scab-resistant varieties. Apply dormant lime sulfur before bud break.",
+    "severity_base": 65
+  },
+  "Apple___Black_rot": {
+    "crop": "Apple",
+    "natural_cure": "Bordeaux mixture spray. Remove mummified fruits. Apply compost tea.",
+    "precaution": "Maintain orchard sanitation. Remove dead wood regularly.",
+    "severity_base": 65
+  },
+  "Apple___Cedar_apple_rust": {
+    "crop": "Apple",
+    "natural_cure": "Neem oil spray. Remove nearby cedar/juniper trees. Apply sulfur dust.",
+    "precaution": "Plant rust-resistant apple varieties. Create distance from cedar trees.",
+    "severity_base": 65
+  },
+  "Apple___healthy": {
+    "crop": "Apple",
+    "natural_cure": "No treatment needed.",
+    "precaution": "Maintain proper nutrition, irrigation, and regular monitoring.",
+    "severity_base": 0
+  },
+  "Grape___Black_rot": {
+    "crop": "Grape",
+    "natural_cure": "Bordeaux mixture spray. Remove mummified fruits. Baking soda spray.",
+    "precaution": "Vineyard sanitation. Prune for air circulation.",
+    "severity_base": 65
+  },
+  "Grape___Esca_(Black_Measles)": {
+    "crop": "Grape",
+    "natural_cure": "No effective cure. Remove and burn infected vines. Apply wound protectant.",
+    "precaution": "Protect pruning wounds. Avoid large cuts.",
+    "severity_base": 65
+  },
+  "Grape___Leaf_blight_(Isariopsis_Leaf_Spot)": {
+    "crop": "Grape",
+    "natural_cure": "Copper sulfate spray. Neem oil. Bordeaux mixture.",
+    "precaution": "Improve air circulation in vineyard.",
+    "severity_base": 65
+  },
+  "Grape___healthy": {
+    "crop": "Grape",
+    "natural_cure": "No treatment needed.",
+    "precaution": "Regular canopy management and monitoring.",
+    "severity_base": 0
+  },
+  "Wheat___Leaf_rust": {
+    "crop": "Wheat",
+    "natural_cure": "Neem oil spray. Wood ash application.",
+    "precaution": "Grow rust-resistant varieties. Early planting.",
+    "severity_base": 65
+  },
+  "Pepper,_bell___Bacterial_spot": {
+    "crop": "Pepper, bell",
+    "natural_cure": "Copper soap spray. Garlic extract spray. Remove infected leaves.",
+    "precaution": "Use disease-free seeds. Work in dry conditions only.",
+    "severity_base": 65
+  },
+  "Pepper,_bell___healthy": {
+    "crop": "Pepper, bell",
+    "natural_cure": "No treatment needed.",
+    "precaution": "Maintain proper nutrition and air circulation.",
+    "severity_base": 0
+  },
+  "Strawberry___Leaf_scorch": {
+    "crop": "Strawberry",
+    "natural_cure": "Neem oil spray. Compost tea. Remove infected leaves.",
+    "precaution": "Use disease-free plants. Avoid overhead irrigation.",
+    "severity_base": 65
+  },
+  "Strawberry___healthy": {
+    "crop": "Strawberry",
+    "natural_cure": "No treatment needed.",
+    "precaution": "Good drainage and air circulation.",
+    "severity_base": 0
+  },
+  "Cherry_(including_sour)___Powdery_mildew": {
+    "crop": "Cherry (including sour)",
+    "natural_cure": "Baking soda spray. Milk spray (40% milk). Neem oil.",
+    "precaution": "Prune for open canopy. Avoid excess nitrogen fertilizer.",
+    "severity_base": 65
+  },
+  "Cherry_(including_sour)___healthy": {
+    "crop": "Cherry (including sour)",
+    "natural_cure": "No treatment needed.",
+    "precaution": "Regular pruning and monitoring.",
+    "severity_base": 0
+  },
+  "Orange___Haunglongbing_(Citrus_greening)": {
+    "crop": "Orange",
+    "natural_cure": "No cure. Remove and burn infected trees. Apply neem oil to control psyllid.",
+    "precaution": "Certified disease-free nursery stock. Control Asian citrus psyllid.",
+    "severity_base": 65
+  },
+  "Peach___Bacterial_spot": {
+    "crop": "Peach",
+    "natural_cure": "Copper soap spray. Garlic extract spray. Remove infected leaves.",
+    "precaution": "Plant resistant varieties. Apply copper sprays in autumn.",
+    "severity_base": 65
+  },
+  "Peach___healthy": {
+    "crop": "Peach",
+    "natural_cure": "No treatment needed.",
+    "precaution": "Regular monitoring and proper nutrition.",
+    "severity_base": 0
+  },
+  "Squash___Powdery_mildew": {
+    "crop": "Squash",
+    "natural_cure": "Baking soda + neem oil spray. Milk spray (40% milk/60% water).",
+    "precaution": "Avoid dense planting. Water at base only.",
+    "severity_base": 65
+  },
+  "Soybean___healthy": {
+    "crop": "Soybean",
+    "natural_cure": "No treatment needed.",
+    "precaution": "Balanced fertilization and regular monitoring.",
+    "severity_base": 0
+  },
+  "Raspberry___healthy": {
+    "crop": "Raspberry",
+    "natural_cure": "No treatment needed.",
+    "precaution": "Proper drainage and air circulation.",
+    "severity_base": 0
+  },
+  "Blueberry___healthy": {
+    "crop": "Blueberry",
+    "natural_cure": "No treatment needed.",
+    "precaution": "Maintain acidic soil pH 4.5-5.5. Regular monitoring.",
+    "severity_base": 0
+  }
+}
