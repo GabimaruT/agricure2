@@ -28,9 +28,8 @@ CORS(app)
 # LOAD CONFIGURATION
 # ═══════════════════════════════════════
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_DIR = os.path.join(BASE_DIR, '..', 'model')
-DATA_DIR  = os.path.join(BASE_DIR, '..', 'data')
-
+MODEL_DIR = os.path.join(BASE_DIR, 'model')
+DATA_DIR  = os.path.join(BASE_DIR, 'data')
 device = torch.device('cpu')
 
 # ═══════════════════════════════════════
