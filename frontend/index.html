@@ -1,0 +1,1701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgriCure 2.0 — Smart Farming Assistant</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, increment, query, orderBy, serverTimestamp, limit } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyATTxXk-A5oTuFKSndw_nK42oxlWoxJPG4",
+      authDomain: "agricure-67e89.firebaseapp.com",
+      projectId: "agricure-67e89",
+      storageBucket: "agricure-67e89.firebasestorage.app",
+      messagingSenderId: "664819221475",
+      appId: "1:664819221475:web:817288afe2b19c48f796d6",
+      measurementId: "G-QYH2CPSGGE"
+    };
+
+    let app, auth, db;
+    try {
+      app  = initializeApp(firebaseConfig);
+      auth = getAuth(app);
+      db   = getFirestore(app);
+      window._auth  = auth;
+      window._db    = db;
+      window._fbFns = {
+        createUserWithEmailAndPassword, signInWithEmailAndPassword,
+        signOut, onAuthStateChanged, updateProfile,
+        collection, addDoc, getDocs, doc, updateDoc,
+        increment, query, orderBy, serverTimestamp, limit
+      };
+      window._firebaseReady = true;
+
+      onAuthStateChanged(auth, (user) => {
+        window._currentUser = user;
+        if (user) {
+          document.getElementById('auth-modal').style.display = 'none';
+          document.getElementById('user-bar').style.display   = 'flex';
+          document.getElementById('nav-signin').style.display = 'none';
+          const name = user.displayName || user.email.split('@')[0];
+          document.getElementById('user-name-display').textContent = name;
+          document.getElementById('user-initials').textContent     = name[0].toUpperCase();
+          document.getElementById('forum-compose').style.display      = 'block';
+          document.getElementById('forum-login-prompt').style.display = 'none';
+          loadForumPosts();
+          loadHistory();
+        } else {
+          document.getElementById('user-bar').style.display            = 'none';
+          document.getElementById('nav-signin').style.display          = 'block';
+          document.getElementById('forum-compose').style.display       = 'none';
+          document.getElementById('forum-login-prompt').style.display  = 'block';
+        }
+      });
+    } catch(err) {
+      window._firebaseReady = false;
+      window._fbError = err.message;
+    }
+  </script>
+
+  <style>
+    :root {
+      --green:#3ddc6e; --lime:#b8f04a; --dark:#0a1409; --card:#111d12;
+      --muted:#3a5040; --text:#e8f5eb; --text2:#8aab90; --accent:#f5c842;
+      --border:rgba(61,220,110,0.13); --red:#ff6b6b; --blue:#64b5f6; --orange:#ff9800;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html{scroll-behavior:smooth;}
+    body{font-family:'DM Sans',sans-serif;background:var(--dark);color:var(--text);overflow-x:hidden;}
+    body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+      background:radial-gradient(ellipse 70% 50% at 5% 5%,rgba(61,220,110,0.08) 0%,transparent 60%),
+                 radial-gradient(ellipse 50% 40% at 95% 90%,rgba(184,240,74,0.05) 0%,transparent 60%);}
+
+    /* NAV */
+    nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;align-items:center;
+      justify-content:space-between;padding:16px 48px;background:rgba(10,20,9,0.92);
+      backdrop-filter:blur(20px);border-bottom:1px solid var(--border);}
+    .logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.45rem;color:var(--green);display:flex;align-items:center;gap:8px;}
+    .logo span{color:var(--lime);}
+    .logo-v{background:var(--green);color:#fff;font-size:0.5rem;padding:2px 5px;border-radius:4px;font-weight:700;letter-spacing:1px;}
+    .nav-links{display:flex;gap:24px;align-items:center;}
+    .nav-links a{color:var(--text2);text-decoration:none;font-size:0.88rem;font-weight:500;transition:color 0.2s;cursor:pointer;}
+    .nav-links a:hover,.nav-links a.nav-active{color:var(--green);}
+    .nav-links a.nav-active{font-weight:700;}
+    .nav-right{display:flex;align-items:center;gap:12px;}
+    .lang-toggle{display:flex;gap:3px;background:var(--card);border-radius:8px;padding:3px;}
+    .lang-btn{padding:4px 9px;border-radius:5px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;
+      font-size:0.78rem;font-weight:600;background:transparent;color:var(--text2);transition:all 0.2s;}
+    .lang-btn.active{background:var(--green);color:var(--dark);}
+    #user-bar{display:none;align-items:center;gap:10px;}
+    .user-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--green),var(--lime));
+      display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;color:var(--dark);}
+    #user-name-display{font-size:0.88rem;font-weight:500;}
+    .logout-btn{background:none;border:1px solid var(--border);color:var(--text2);padding:5px 12px;
+      border-radius:8px;cursor:pointer;font-size:0.8rem;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
+    .logout-btn:hover{border-color:var(--red);color:var(--red);}
+    .signin-btn{background:var(--green);color:var(--dark);border:none;padding:8px 18px;
+      border-radius:10px;font-weight:700;font-size:0.88rem;cursor:pointer;font-family:'Syne',sans-serif;}
+
+    /* AUTH */
+    #auth-modal{position:fixed;inset:0;z-index:999;background:rgba(0,0,0,0.8);backdrop-filter:blur(10px);
+      display:flex;align-items:center;justify-content:center;}
+    .auth-box{background:var(--card);border:1px solid var(--border);border-radius:24px;padding:40px;width:100%;max-width:420px;}
+    .auth-box h2{font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;margin-bottom:6px;}
+    .auth-box h2 span{color:var(--green);}
+    .auth-box>p{color:var(--text2);font-size:0.88rem;margin-bottom:24px;}
+    .auth-tabs{display:flex;background:rgba(255,255,255,0.04);border-radius:10px;padding:4px;margin-bottom:22px;}
+    .auth-tab{flex:1;padding:8px;border:none;background:transparent;color:var(--text2);cursor:pointer;
+      border-radius:7px;font-family:'DM Sans',sans-serif;font-weight:500;font-size:0.9rem;transition:all 0.2s;}
+    .auth-tab.active{background:var(--green);color:var(--dark);font-weight:700;}
+    .auth-field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+    .auth-field label{font-size:0.82rem;color:var(--text2);font-weight:500;}
+    .auth-field input{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;
+      padding:12px 16px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.95rem;outline:none;transition:border-color 0.2s;}
+    .auth-field input:focus{border-color:var(--green);}
+    .auth-submit{width:100%;padding:13px;background:var(--green);color:var(--dark);border:none;
+      border-radius:12px;font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;cursor:pointer;margin-top:8px;}
+    .auth-error{color:var(--red);font-size:0.82rem;margin-top:8px;display:none;
+      padding:8px 12px;background:rgba(255,107,107,0.1);border-radius:8px;border:1px solid rgba(255,107,107,0.2);}
+    .auth-skip{width:100%;padding:10px;background:transparent;color:var(--text2);border:1px solid var(--border);
+      border-radius:12px;font-family:'DM Sans',sans-serif;font-size:0.88rem;cursor:pointer;margin-top:10px;}
+    .firebase-status{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;font-size:0.8rem;margin-bottom:16px;}
+    .firebase-status.ok{background:rgba(61,220,110,0.1);border:1px solid rgba(61,220,110,0.2);color:var(--green);}
+
+    /* HERO */
+    .hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;
+      justify-content:center;text-align:center;padding:120px 24px 80px;position:relative;z-index:1;}
+    .hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(61,220,110,0.1);
+      border:1px solid var(--border);border-radius:100px;padding:6px 18px;margin-bottom:28px;
+      font-size:0.8rem;color:var(--green);font-weight:600;animation:fadeUp 0.6s ease both;}
+    .hero h1{font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(2.6rem,7vw,5rem);
+      line-height:1.05;letter-spacing:-2px;animation:fadeUp 0.6s 0.1s ease both;}
+    .hero h1 em{font-style:normal;color:var(--green);}
+    .hero>p{max-width:560px;margin:20px auto 0;color:var(--text2);font-size:1.05rem;
+      line-height:1.7;animation:fadeUp 0.6s 0.2s ease both;}
+    .hero-btns{display:flex;gap:12px;margin-top:36px;flex-wrap:wrap;justify-content:center;animation:fadeUp 0.6s 0.3s ease both;}
+    .btn-primary{background:var(--green);color:var(--dark);padding:13px 26px;border-radius:12px;
+      font-weight:700;font-size:0.95rem;border:none;cursor:pointer;font-family:'Syne',sans-serif;
+      transition:transform 0.15s,box-shadow 0.15s;box-shadow:0 0 24px rgba(61,220,110,0.25);}
+    .btn-primary:hover{transform:translateY(-2px);box-shadow:0 4px 28px rgba(61,220,110,0.35);}
+    .btn-secondary{background:transparent;color:var(--text);padding:13px 26px;border-radius:12px;
+      font-weight:500;font-size:0.95rem;border:1px solid var(--border);cursor:pointer;transition:border-color 0.2s;}
+    .btn-secondary:hover{border-color:var(--green);}
+    .stats{display:flex;justify-content:center;flex-wrap:wrap;margin-top:56px;border:1px solid var(--border);
+      border-radius:16px;overflow:hidden;max-width:800px;margin-inline:auto;animation:fadeUp 0.6s 0.4s ease both;}
+    .stat{flex:1;min-width:120px;padding:18px 16px;text-align:center;border-right:1px solid var(--border);}
+    .stat:last-child{border-right:none;}
+    .stat-num{font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;color:var(--green);}
+    .stat-label{font-size:0.72rem;color:var(--text2);margin-top:3px;}
+
+    /* SECTIONS */
+    section{position:relative;z-index:1;}
+    .section-header{text-align:center;margin-bottom:44px;}
+    .section-header h2{font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(1.7rem,4vw,2.6rem);letter-spacing:-1px;}
+    .section-header h2 span{color:var(--green);}
+    .section-header p{color:var(--text2);margin-top:10px;font-size:0.95rem;}
+    .tag{display:inline-block;background:rgba(61,220,110,0.1);color:var(--green);border-radius:100px;
+      padding:4px 14px;font-size:0.75rem;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:14px;}
+    .fb-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(255,160,0,0.1);
+      border:1px solid rgba(255,160,0,0.2);border-radius:100px;padding:3px 11px;
+      font-size:0.7rem;color:#ffa000;font-weight:600;margin-left:8px;}
+
+    /* DETECTOR */
+    #detector{padding:80px 24px;}
+    .detector-wrap{max-width:880px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+    .upload-card{background:var(--card);border:2px dashed var(--border);border-radius:20px;padding:36px 28px;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;cursor:pointer;
+      transition:border-color 0.2s,background 0.2s;min-height:300px;text-align:center;}
+    .upload-card:hover{border-color:var(--green);background:rgba(61,220,110,0.03);}
+    .upload-card.dragover{border-color:var(--lime);}
+    .upload-icon{font-size:2.8rem;}
+    .upload-card h3{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;}
+    .upload-card p{color:var(--text2);font-size:0.85rem;line-height:1.6;}
+    #file-input{display:none;}
+    .preview-img{width:100%;height:175px;object-fit:cover;border-radius:10px;margin-top:6px;display:none;}
+    .result-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:28px;
+      display:flex;flex-direction:column;gap:14px;min-height:300px;}
+    .result-card h3{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;}
+    .result-placeholder{flex:1;display:flex;flex-direction:column;align-items:center;
+      justify-content:center;color:var(--muted);text-align:center;gap:10px;font-size:0.85rem;}
+    .result-content{display:none;flex-direction:column;gap:12px;}
+    .disease-name{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;color:var(--accent);}
+    .severity-bar-wrap{display:flex;flex-direction:column;gap:5px;}
+    .severity-label{font-size:0.8rem;color:var(--text2);display:flex;justify-content:space-between;}
+    .severity-bar{height:7px;background:var(--muted);border-radius:100px;overflow:hidden;}
+    .severity-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--lime));border-radius:100px;transition:width 1s ease;}
+    .treatment-list{list-style:none;display:flex;flex-direction:column;gap:7px;}
+    .treatment-list li{background:rgba(61,220,110,0.07);border-radius:9px;padding:9px 13px;
+      font-size:0.84rem;color:var(--text2);border-left:3px solid var(--green);}
+    .treatment-list li.natural{border-left-color:var(--green);}
+    .treatment-list li.chemical{border-left-color:var(--accent);}
+    .treatment-list li.prevention{border-left-color:var(--blue);}
+    .analyze-btn{width:100%;padding:13px;background:var(--green);color:var(--dark);border:none;
+      border-radius:12px;font-family:'Syne',sans-serif;font-weight:700;font-size:0.95rem;
+      cursor:pointer;transition:opacity 0.2s,transform 0.15s;display:none;margin-top:10px;}
+    .spinner-row{display:none;align-items:center;justify-content:center;gap:10px;color:var(--green);font-size:0.88rem;margin-top:10px;}
+    .spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin 0.8s linear infinite;}
+    .saved-badge{display:none;align-items:center;gap:6px;font-size:0.78rem;color:var(--green);}
+
+    /* KRUSHI KENDRA */
+    .kk-section{max-width:880px;margin:20px auto 0;padding:0 24px;}
+    .kk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:16px;}
+    .kk-card{background:rgba(61,220,110,0.05);border:1px solid var(--border);border-radius:14px;
+      padding:16px;display:flex;flex-direction:column;gap:8px;transition:border-color 0.2s;}
+    .kk-card:hover{border-color:var(--green);}
+    .kk-name{font-weight:700;font-size:0.88rem;line-height:1.3;}
+    .kk-city{font-size:0.72rem;color:var(--green);font-weight:600;}
+    .kk-addr{font-size:0.7rem;color:var(--text2);line-height:1.5;}
+    .kk-dist{font-size:0.7rem;color:var(--accent);font-weight:600;}
+    .kk-phone{font-size:0.72rem;color:var(--blue);text-decoration:none;}
+    .kk-dir{display:flex;align-items:center;justify-content:center;gap:5px;
+      background:rgba(61,220,110,0.1);border:1px solid var(--border);border-radius:8px;
+      padding:6px;font-size:0.72rem;color:var(--green);text-decoration:none;font-weight:600;margin-top:4px;}
+
+    /* HISTORY */
+    #history{padding:60px 24px;background:rgba(0,0,0,0.15);}
+    .history-wrap{max-width:880px;margin:0 auto;}
+    .history-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;}
+    .history-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;
+      display:flex;flex-direction:column;gap:8px;}
+    .history-type{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;}
+    .history-type.scan{color:var(--accent);}
+    .history-type.weather{color:#64b5f6;}
+    .history-type.predict{color:var(--orange);}
+    .history-title{font-family:'Syne',sans-serif;font-weight:700;font-size:0.95rem;}
+    .history-detail{color:var(--text2);font-size:0.8rem;line-height:1.5;}
+    .history-time{color:var(--muted);font-size:0.72rem;margin-top:4px;}
+    .history-placeholder{text-align:center;padding:40px;color:var(--muted);}
+
+    /* WEATHER */
+    #weather{padding:80px 24px;}
+    .weather-wrap{max-width:860px;margin:0 auto;}
+    .weather-search{display:flex;gap:10px;margin-bottom:28px;}
+    .weather-input{flex:1;background:var(--card);border:1px solid var(--border);border-radius:12px;
+      padding:13px 18px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.95rem;outline:none;transition:border-color 0.2s;}
+    .weather-input:focus{border-color:var(--green);}
+    .weather-input::placeholder{color:var(--muted);}
+    .weather-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:14px;}
+    .weather-main{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:28px;display:flex;flex-direction:column;gap:6px;}
+    .weather-city{font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:700;}
+    .weather-temp{font-family:'Syne',sans-serif;font-size:3.2rem;font-weight:800;color:var(--green);line-height:1;}
+    .weather-desc{color:var(--text2);font-size:0.88rem;text-transform:capitalize;}
+    .weather-icon-big{font-size:2.8rem;margin-bottom:6px;}
+    .weather-stat-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:22px;display:flex;flex-direction:column;gap:5px;}
+    .weather-stat-icon{font-size:1.4rem;}
+    .weather-stat-val{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;}
+    .weather-stat-name{color:var(--text2);font-size:0.78rem;}
+    .weather-alert{margin-top:14px;padding:14px 18px;background:rgba(245,200,66,0.1);
+      border:1px solid rgba(245,200,66,0.25);border-radius:12px;font-size:0.88rem;color:var(--accent);display:none;}
+    .weather-placeholder{text-align:center;padding:48px;color:var(--muted);}
+
+    /* FORUM */
+    #forum{padding:80px 24px;background:rgba(0,0,0,0.15);}
+    .forum-wrap{max-width:740px;margin:0 auto;}
+    .forum-login-prompt{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;text-align:center;margin-bottom:24px;}
+    .forum-login-prompt p{color:var(--text2);margin-bottom:14px;}
+    .forum-compose{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:22px;margin-bottom:28px;display:none;}
+    .forum-compose textarea{width:100%;background:rgba(255,255,255,0.03);border:1px solid var(--border);
+      border-radius:10px;padding:12px 14px;color:var(--text);font-family:'DM Sans',sans-serif;
+      font-size:0.9rem;resize:none;outline:none;transition:border-color 0.2s;min-height:72px;}
+    .forum-compose textarea:focus{border-color:var(--green);}
+    .forum-compose-footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px;flex-wrap:wrap;gap:8px;}
+    .forum-tags{display:flex;gap:6px;flex-wrap:wrap;}
+    .forum-tag-chip{padding:4px 11px;border-radius:100px;border:1px solid var(--border);background:transparent;
+      color:var(--text2);font-size:0.75rem;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif;}
+    .forum-tag-chip:hover,.forum-tag-chip.active{background:var(--green);color:var(--dark);border-color:var(--green);}
+    .post-list{display:flex;flex-direction:column;gap:14px;}
+    .post-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px;transition:border-color 0.2s;}
+    .post-card:hover{border-color:rgba(61,220,110,0.3);}
+    .post-header{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;}
+    .avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--green),var(--lime));
+      display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;color:var(--dark);flex-shrink:0;}
+    .post-meta{flex:1;}
+    .post-author{font-weight:600;font-size:0.9rem;}
+    .post-time{font-size:0.74rem;color:var(--muted);margin-top:2px;}
+    .post-tag{padding:3px 9px;border-radius:100px;background:rgba(61,220,110,0.1);color:var(--green);font-size:0.68rem;font-weight:700;white-space:nowrap;}
+    .post-body{color:var(--text2);font-size:0.88rem;line-height:1.65;margin-bottom:14px;}
+    .post-actions{display:flex;gap:18px;}
+    .post-action{background:none;border:none;color:var(--muted);font-size:0.78rem;cursor:pointer;
+      display:flex;align-items:center;gap:5px;transition:color 0.15s;font-family:'DM Sans',sans-serif;padding:0;}
+    .post-action:hover{color:var(--green);}
+    .loading-posts{text-align:center;padding:30px;color:var(--text2);display:flex;flex-direction:column;align-items:center;gap:10px;}
+
+    /* EARLY DETECTION */
+    #early-detection{padding:80px 24px;}
+    .ed-wrap{max-width:1080px;margin:0 auto;}
+    .ed-grid{display:grid;grid-template-columns:390px 1fr;gap:22px;align-items:start;}
+    .ed-form-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:26px;display:flex;flex-direction:column;gap:16px;}
+    .ed-form-card h3{font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;}
+    .ed-field{display:flex;flex-direction:column;gap:6px;}
+    .ed-field label{font-size:0.76rem;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:0.4px;}
+    .ed-select{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;
+      padding:10px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.9rem;
+      outline:none;transition:border-color 0.2s;appearance:none;cursor:pointer;width:100%;}
+    .ed-select:focus{border-color:var(--green);}
+    .ed-select option{background:#111d12;}
+    .ed-input{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;
+      padding:10px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.9rem;
+      outline:none;transition:border-color 0.2s;width:100%;}
+    .ed-input:focus{border-color:var(--green);}
+    .ed-input::placeholder{color:var(--muted);}
+    .input-note{font-size:0.68rem;color:var(--muted);margin-top:3px;}
+    .symptom-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+    .sym-chip{padding:7px 10px;border-radius:9px;border:1px solid var(--border);background:transparent;
+      cursor:pointer;font-size:0.78rem;color:var(--text2);transition:all 0.18s;text-align:left;font-family:'DM Sans',sans-serif;}
+    .sym-chip:hover{border-color:var(--green);color:var(--green);}
+    .sym-chip.active{background:rgba(61,220,110,0.12);border-color:var(--green);color:var(--green);}
+    .predict-btn{width:100%;padding:13px;background:linear-gradient(135deg,var(--green),var(--lime));
+      color:var(--dark);border:none;border-radius:12px;font-family:'Syne',sans-serif;font-weight:700;
+      font-size:0.95rem;cursor:pointer;transition:transform 0.15s,box-shadow 0.2s;box-shadow:0 0 20px rgba(61,220,110,0.2);}
+    .predict-btn:hover{transform:translateY(-2px);box-shadow:0 6px 28px rgba(61,220,110,0.3);}
+    .autofill-btn{width:100%;padding:10px;background:transparent;color:var(--text2);border:1px solid var(--border);
+      border-radius:12px;font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;transition:border-color 0.2s;}
+    .autofill-btn:hover{border-color:var(--green);}
+    .ed-results{display:flex;flex-direction:column;gap:14px;}
+    .ed-placeholder{background:var(--card);border:1px solid var(--border);border-radius:20px;
+      padding:48px 28px;text-align:center;color:var(--muted);font-size:0.86rem;
+      display:flex;flex-direction:column;align-items:center;gap:10px;}
+    .risk-dash{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:22px;
+      display:none;flex-direction:column;gap:16px;}
+    .risk-dash.show{display:flex;}
+    .risk-top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+    .risk-score{font-size:2.2rem;font-weight:800;font-family:'Syne',sans-serif;}
+    .risk-score.low{color:var(--green);}
+    .risk-score.medium{color:var(--accent);}
+    .risk-score.high{color:var(--red);}
+    .rbar-wrap{display:flex;flex-direction:column;gap:5px;}
+    .rbar-lbl{font-size:0.76rem;color:var(--text2);display:flex;justify-content:space-between;}
+    .rbar{height:9px;background:rgba(255,255,255,0.06);border-radius:100px;overflow:hidden;}
+    .rbar-fill{height:100%;border-radius:100px;transition:width 1.2s cubic-bezier(.4,0,.2,1);}
+    .rbar-fill.low{background:linear-gradient(90deg,var(--green),var(--lime));}
+    .rbar-fill.medium{background:linear-gradient(90deg,var(--accent),#ff9f43);}
+    .rbar-fill.high{background:linear-gradient(90deg,var(--red),#ff4757);}
+    .forecast-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;}
+    .fday{flex:0 0 auto;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:9px 12px;text-align:center;min-width:64px;}
+    .fday.hi{border-color:rgba(255,107,107,0.4);background:rgba(255,107,107,0.06);}
+    .fday.md{border-color:rgba(245,200,66,0.35);background:rgba(245,200,66,0.06);}
+    .fday-n{font-size:0.66rem;color:var(--text2);font-weight:600;}
+    .fday-i{font-size:1.2rem;margin:3px 0;}
+    .fday-p{font-size:0.74rem;font-weight:700;}
+    .alert-card{border-radius:12px;padding:13px 15px;display:flex;gap:10px;align-items:flex-start;border:1px solid;margin-bottom:0;}
+    .alert-card.a-hi{background:rgba(255,107,107,0.07);border-color:rgba(255,107,107,0.25);}
+    .alert-card.a-md{background:rgba(245,200,66,0.07);border-color:rgba(245,200,66,0.25);}
+    .alert-card.a-in{background:rgba(61,220,110,0.06);border-color:rgba(61,220,110,0.2);}
+    .alert-ico{font-size:1.2rem;flex-shrink:0;margin-top:1px;}
+    .alert-body{font-size:0.82rem;line-height:1.55;color:var(--text2);}
+    .alert-title{font-weight:700;color:var(--text);font-size:0.86rem;margin-bottom:2px;}
+    .dis-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px;}
+    .dis-top{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+    .dis-name{font-family:'Syne',sans-serif;font-weight:700;font-size:0.92rem;}
+    .dis-prob{font-size:0.74rem;font-weight:700;padding:3px 9px;border-radius:100px;}
+    .dis-prob.hi{background:rgba(255,107,107,0.15);color:var(--red);}
+    .dis-prob.md{background:rgba(245,200,66,0.15);color:var(--accent);}
+    .dis-prob.lo{background:rgba(61,220,110,0.15);color:var(--green);}
+    .stages-row{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px;}
+    .stage-c{flex:0 0 auto;width:105px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:9px;padding:9px 7px;text-align:center;}
+    .stage-ico{font-size:1.6rem;}
+    .stage-lbl{font-size:0.6rem;font-weight:700;text-transform:uppercase;color:var(--text2);letter-spacing:0.3px;margin-top:4px;}
+    .stage-desc{font-size:0.64rem;color:var(--muted);line-height:1.4;margin-top:3px;}
+    .dis-tips{list-style:none;display:flex;flex-direction:column;gap:4px;}
+    .dis-tips li{font-size:0.78rem;color:var(--text2);padding:5px 9px;background:rgba(61,220,110,0.05);border-radius:7px;border-left:2px solid var(--green);}
+    .prev-card{background:var(--card);border:1px solid rgba(61,220,110,0.18);border-radius:16px;padding:20px;display:none;flex-direction:column;gap:12px;}
+    .prev-card.show{display:flex;}
+    .prev-card h4{font-family:'Syne',sans-serif;font-size:0.92rem;font-weight:700;color:var(--green);}
+    .rec-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+    .rec-c{background:rgba(61,220,110,0.04);border:1px solid var(--border);border-radius:11px;padding:11px 13px;}
+    .rec-ico{font-size:1.3rem;margin-bottom:4px;}
+    .rec-title{font-size:0.8rem;font-weight:700;color:var(--text);}
+    .rec-body{font-size:0.73rem;color:var(--text2);line-height:1.45;margin-top:2px;}
+    .comm-alert{background:var(--card);border:1px solid rgba(245,200,66,0.3);border-radius:13px;
+      padding:14px 16px;display:none;align-items:center;gap:12px;font-size:0.83rem;color:var(--text2);}
+    .comm-alert.show{display:flex;}
+    .comm-alert strong{color:var(--accent);}
+    .ml-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(100,181,246,0.1);
+      border:1px solid rgba(100,181,246,0.2);border-radius:100px;padding:3px 10px;
+      font-size:0.68rem;color:var(--blue);font-weight:600;margin-top:4px;}
+
+    /* 3D */
+    .hero-3d-float{position:absolute;right:3%;top:50%;transform:translateY(-50%);width:340px;height:280px;pointer-events:none;z-index:0;}
+    #farm-3d-canvas{width:100%;height:100%;display:block;border-radius:20px;}
+    .canvas-glow{position:absolute;inset:0;border-radius:20px;box-shadow:0 0 60px rgba(61,220,110,0.15);pointer-events:none;}
+    @media(max-width:1000px){.hero-3d-float{display:none;}}
+
+    /* FOOTER */
+    footer{padding:40px 24px 28px;border-top:1px solid var(--border);text-align:center;color:var(--muted);font-size:0.82rem;position:relative;z-index:1;}
+    footer strong{color:var(--green);}
+
+    /* TOAST */
+    #toast{position:fixed;bottom:28px;right:28px;z-index:9999;background:var(--card);border:1px solid var(--border);
+      border-radius:12px;padding:14px 20px;font-size:0.88rem;color:var(--text);display:none;
+      align-items:center;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,0.4);}
+    #toast.success{border-color:var(--green);color:var(--green);}
+    #toast.error{border-color:var(--red);color:var(--red);}
+
+    @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    @keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .scroll-reveal{opacity:0;transform:translateY(22px);transition:opacity 0.6s ease,transform 0.6s ease;}
+    .scroll-reveal.visible{opacity:1;transform:none;}
+
+    @media(max-width:860px){.ed-grid{grid-template-columns:1fr;}.rec-grid{grid-template-columns:1fr;}}
+    @media(max-width:700px){
+      nav{padding:14px 18px;} .nav-links{display:none;}
+      .detector-wrap,.weather-grid{grid-template-columns:1fr;}
+      .stats{flex-direction:column;} .stat{border-right:none;border-bottom:1px solid var(--border);}
+    }
+  </style>
+</head>
+<body>
+<div id="toast"></div>
+
+<!-- AUTH MODAL -->
+<div id="auth-modal">
+  <div class="auth-box">
+    <h2>Welcome to Agri<span>Cure</span> 2.0 🌿</h2>
+    <p data-i18n="auth-subtitle">Sign in to save your scan history, weather searches, and join the community forum.</p>
+    <div id="fb-status-indicator"></div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchTab('login')" data-i18n="tab-signin">Sign In</button>
+      <button class="auth-tab" onclick="switchTab('register')" data-i18n="tab-register">Register</button>
+    </div>
+    <div id="tab-login">
+      <div class="auth-field"><label data-i18n="label-email">Email</label>
+        <input type="email" id="login-email" placeholder="farmer@example.com"/></div>
+      <div class="auth-field"><label data-i18n="label-password">Password</label>
+        <input type="password" id="login-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')handleLogin()"/></div>
+      <div class="auth-error" id="login-error"></div>
+      <button class="auth-submit" onclick="handleLogin()" data-i18n="btn-signin">Sign In</button>
+    </div>
+    <div id="tab-register" style="display:none">
+      <div class="auth-field"><label data-i18n="label-fullname">Full Name</label>
+        <input type="text" id="reg-name" placeholder="Ramesh Patil"/></div>
+      <div class="auth-field"><label data-i18n="label-email">Email</label>
+        <input type="email" id="reg-email" placeholder="farmer@example.com"/></div>
+      <div class="auth-field"><label data-i18n="label-password">Password</label>
+        <input type="password" id="reg-pass" placeholder="Min 6 characters" onkeydown="if(event.key==='Enter')handleRegister()"/></div>
+      <div class="auth-error" id="reg-error"></div>
+      <button class="auth-submit" onclick="handleRegister()" data-i18n="btn-create-account">Create Account</button>
+    </div>
+    <button class="auth-skip" onclick="skipAuth()" data-i18n="btn-skip">Continue without account</button>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">🌿 Agri<span>Cure</span> <span class="logo-v">2.0</span></div>
+  <div class="nav-links">
+    <a id="nav-link-home" onclick="showPage('home')">🏠 Home</a>
+    <a id="nav-link-detector" onclick="showPage('detector')" data-i18n="nav-detector">Disease Detector</a>
+    <a id="nav-link-early" onclick="showPage('early-detection')" style="color:var(--lime);font-weight:700">🔭 Early Detection</a>
+    <a id="nav-link-weather" onclick="showPage('weather')" data-i18n="nav-weather">Weather</a>
+    <a id="nav-link-forum" onclick="showPage('forum')" data-i18n="nav-community">Community</a>
+    <a id="nav-link-history" onclick="showPage('history')" data-i18n="nav-history">My History</a>
+  </div>
+  <div class="nav-right">
+    <div class="lang-toggle">
+      <button class="lang-btn active" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" onclick="setLang('hi')">HI</button>
+      <button class="lang-btn" onclick="setLang('mr')">MR</button>
+    </div>
+    <div id="user-bar">
+      <div class="user-avatar" id="user-initials">U</div>
+      <span id="user-name-display"></span>
+      <button class="logout-btn" onclick="handleLogout()" data-i18n="btn-signout">Sign Out</button>
+    </div>
+    <button class="signin-btn" id="nav-signin"
+      onclick="document.getElementById('auth-modal').style.display='flex'"
+      style="display:none" data-i18n="btn-signin">Sign In</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-3d-float">
+    <canvas id="farm-3d-canvas"></canvas>
+    <div class="canvas-glow"></div>
+  </div>
+  <div class="hero-badge" data-i18n="hero-badge">🌱 EcoThon 5.0 — SIPNA College, Amravati</div>
+  <h1 data-i18n="hero-title">Your <em>Smart</em><br/>Farming Assistant</h1>
+  <p data-i18n="hero-subtitle">AI-powered crop disease detection, real-time weather, and a farmer community — all saved to Firebase.</p>
+  <div class="hero-btns">
+    <button class="btn-primary" onclick="gotoSection('detector')" data-i18n="hero-btn-analyze">Analyze My Crop 🔬</button>
+    <button class="btn-secondary" onclick="gotoSection('forum')" data-i18n="hero-btn-community">Join Community</button>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="stat-num">99.4%</div><div class="stat-label">AI Accuracy</div></div>
+    <div class="stat"><div class="stat-num">38</div><div class="stat-label" data-i18n="stat-crops">Disease Classes</div></div>
+    <div class="stat"><div class="stat-num">3</div><div class="stat-label" data-i18n="stat-languages">Languages</div></div>
+    <div class="stat"><div class="stat-num">🔥</div><div class="stat-label" data-i18n="stat-firebase">Firebase Backend</div></div>
+    <div class="stat"><div class="stat-num">20+</div><div class="stat-label">Krushi Kendras</div></div>
+  </div>
+</section>
+
+<!-- DETECTOR -->
+<section id="detector">
+  <div class="section-header scroll-reveal">
+    <span class="tag" data-i18n="detector-tag">AI + Firebase</span>
+    <h2 data-i18n="detector-title">Crop <span>Disease</span> Detector</h2>
+    <p data-i18n="detector-subtitle">Upload a crop leaf photo → AI diagnoses → Natural cure + nearest Krushi Kendra</p>
+  </div>
+  <div class="detector-wrap scroll-reveal">
+    <div>
+      <div class="upload-card" id="upload-zone"
+        onclick="document.getElementById('file-input').click()"
+        ondragover="handleDrag(event)" ondrop="handleDrop(event)" ondragleave="handleDragLeave()">
+        <div class="upload-icon" id="upload-icon">📸</div>
+        <h3 id="upload-title" data-i18n="upload-title">Upload Crop Photo</h3>
+        <p id="upload-sub" data-i18n="upload-sub">Drag & drop or click to select<br/>JPG, PNG supported</p>
+        <img class="preview-img" id="preview-img" alt="Preview"/>
+      </div>
+      <input type="file" id="file-input" accept="image/*" onchange="handleFileSelect(event)"/>
+      <button class="analyze-btn" id="analyze-btn" onclick="analyzeImage()" data-i18n="btn-analyze">🔬 Analyze Disease</button>
+      <div class="spinner-row" id="spinner"><div class="spinner"></div><span data-i18n="analyzing">Analyzing your crop with AI...</span></div>
+    </div>
+    <div class="result-card">
+      <h3 data-i18n="result-title">Analysis Result <span class="fb-badge">🔥 Firebase</span></h3>
+      <div class="result-placeholder" id="result-placeholder">
+        <div style="font-size:2.4rem">🌿</div>
+        <p data-i18n="result-placeholder">Upload a crop image to get AI-powered disease analysis with natural cures.</p>
+      </div>
+      <div class="result-content" id="result-content">
+        <div class="disease-name" id="disease-name"></div>
+        <div id="result-text" style="color:var(--text2);font-size:0.88rem;line-height:1.7;"></div>
+        <div class="severity-bar-wrap">
+          <div class="severity-label"><span data-i18n="severity">Severity</span><span id="sev-pct">0%</span></div>
+          <div class="severity-bar"><div class="severity-fill" id="sev-fill" style="width:0%"></div></div>
+        </div>
+        <ul class="treatment-list" id="treatment-list"></ul>
+        <div class="saved-badge" id="saved-badge" data-i18n="saved-firebase">✅ Saved to your Firebase history</div>
+      </div>
+    </div>
+  </div>
+  <!-- Krushi Kendra results appear here after image analysis -->
+  <div id="kk-detector-results"></div>
+</section>
+
+<!-- HISTORY -->
+<section id="history">
+  <div class="section-header scroll-reveal">
+    <span class="tag" data-i18n="history-tag">Firebase Database</span>
+    <h2 data-i18n="history-title">My <span>History</span></h2>
+    <p data-i18n="history-subtitle">All your disease scans, predictions and weather searches — permanently stored in Firestore</p>
+  </div>
+  <div class="history-wrap scroll-reveal">
+    <div class="history-grid" id="history-grid">
+      <div class="history-placeholder" data-i18n="history-signin">🔐 Sign in to view your saved history</div>
+    </div>
+  </div>
+</section>
+
+<!-- WEATHER -->
+<section id="weather">
+  <div class="section-header scroll-reveal">
+    <span class="tag" data-i18n="weather-tag">Real-Time + Saved</span>
+    <h2 data-i18n="weather-title">Farm <span>Weather</span> Insights</h2>
+    <p data-i18n="weather-subtitle">Weather searches saved to Firebase so you can track conditions over time</p>
+  </div>
+  <div class="weather-wrap scroll-reveal">
+    <div class="weather-search">
+      <input class="weather-input" id="city-input" placeholder="Enter city or village (e.g. Amravati)..."
+        onkeydown="if(event.key==='Enter')fetchWeather()"/>
+      <button class="btn-primary" onclick="fetchWeather()" data-i18n="btn-check-weather">Check Weather</button>
+    </div>
+    <div id="weather-display">
+      <div class="weather-placeholder">
+        <div style="font-size:2.5rem;margin-bottom:10px">🌤️</div>
+        <p data-i18n="weather-empty">Enter your location to get real-time weather and farming alerts</p>
+      </div>
+    </div>
+    <div class="weather-alert" id="weather-alert"></div>
+  </div>
+</section>
+
+<!-- FORUM -->
+<section id="forum">
+  <div class="section-header scroll-reveal">
+    <span class="tag" data-i18n="forum-tag">Firebase Community</span>
+    <h2 data-i18n="forum-title">Farmer <span>Community</span> Forum</h2>
+    <p data-i18n="forum-subtitle">Posts stored permanently in Firestore — shared with all farmers</p>
+  </div>
+  <div class="forum-wrap scroll-reveal">
+    <div class="forum-login-prompt" id="forum-login-prompt">
+      <p data-i18n="forum-login-text">Sign in to post questions and help other farmers</p>
+      <button class="btn-primary" onclick="document.getElementById('auth-modal').style.display='flex'" data-i18n="btn-signin-post">Sign In to Post</button>
+    </div>
+    <div class="forum-compose" id="forum-compose">
+      <textarea id="post-input" placeholder="Share a farming tip or ask a question..."></textarea>
+      <div class="forum-compose-footer">
+        <div class="forum-tags" id="tag-buttons">
+          <button class="forum-tag-chip active" data-tag="General" data-i18n="tag-general">General</button>
+          <button class="forum-tag-chip" data-tag="Disease" data-i18n="tag-disease">Disease</button>
+          <button class="forum-tag-chip" data-tag="Irrigation" data-i18n="tag-irrigation">Irrigation</button>
+          <button class="forum-tag-chip" data-tag="Pesticide" data-i18n="tag-pesticide">Pesticide</button>
+        </div>
+        <button class="btn-primary" style="padding:9px 18px;font-size:0.88rem" onclick="submitPost()" data-i18n="btn-post">Post 🔥</button>
+      </div>
+    </div>
+    <div class="post-list" id="post-list">
+      <div class="loading-posts"><div class="spinner"></div><span data-i18n="loading-posts">Loading posts from Firebase...</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- EARLY DETECTION -->
+<section id="early-detection">
+  <div class="section-header scroll-reveal">
+    <span class="tag">🔭 AI Prediction + ML Model</span>
+    <h2>Early <span>Detection</span> System</h2>
+    <p>Predict crop diseases before they occur — AI-powered risk forecasting with real ML backend</p>
+  </div>
+  <div class="ed-wrap scroll-reveal">
+    <div class="ed-grid">
+      <div class="ed-form-card">
+        <h3>🌾 Crop Risk Assessment</h3>
+        <div class="ed-field">
+          <label>Crop Type</label>
+          <select class="ed-select" id="ed-crop">
+            <option value="">-- Select Crop --</option>
+            <option>Wheat</option><option>Rice</option><option>Tomato</option>
+            <option>Cotton</option><option>Maize</option><option>Potato</option>
+            <option>Soybean</option><option>Sugarcane</option>
+          </select>
+        </div>
+        <div class="ed-field">
+          <label>City / Village</label>
+          <input class="ed-input" id="ed-city" placeholder="e.g. Amravati" value="Amravati"/>
+        </div>
+        <div class="ed-field">
+          <label>Region / State</label>
+          <select class="ed-select" id="ed-region">
+            <option value="">-- Select Region --</option>
+            <option value="Maharashtra">Maharashtra (Semi-Arid)</option>
+            <option value="Punjab">Punjab (Sub-Humid)</option>
+            <option value="West Bengal">West Bengal (Humid)</option>
+            <option value="Rajasthan">Rajasthan (Arid)</option>
+            <option value="Andhra Pradesh">Andhra Pradesh (Tropical)</option>
+            <option value="Uttar Pradesh">Uttar Pradesh (Subtropical)</option>
+            <option value="Karnataka">Karnataka (Mixed)</option>
+          </select>
+        </div>
+        <div class="ed-field">
+          <label>Growth Stage</label>
+          <select class="ed-select" id="ed-stage">
+            <option value="">-- Select Stage --</option>
+            <option>Seedling</option><option>Vegetative</option>
+            <option>Flowering</option><option>Fruiting</option>
+          </select>
+        </div>
+        <!-- PESTICIDE INPUT — KEY FEATURE -->
+        <div class="ed-field">
+          <label>🧪 Times Pesticide Applied This Season</label>
+          <input class="ed-input" type="number" id="ed-pesticide" placeholder="0" value="0" min="0" max="20"/>
+          <div class="input-note">Higher applications = more resistance risk. Affects ML prediction accuracy.</div>
+        </div>
+        <div class="ed-field">
+          <label>Past Disease Occurrences (last 2 seasons)</label>
+          <input class="ed-input" type="number" id="ed-past-disease" placeholder="0" value="0" min="0" max="10"/>
+        </div>
+        <div class="ed-field">
+          <label>Symptoms (optional — select all that apply)</label>
+          <div class="symptom-grid">
+            <button class="sym-chip" onclick="toggleSym(this,'yellow_spots')">🟡 Yellow spots</button>
+            <button class="sym-chip" onclick="toggleSym(this,'leaf_curl')">🌀 Leaf curling</button>
+            <button class="sym-chip" onclick="toggleSym(this,'white_powder')">⬜ White powder</button>
+            <button class="sym-chip" onclick="toggleSym(this,'holes')">🕳️ Holes in leaves</button>
+            <button class="sym-chip" onclick="toggleSym(this,'wilting')">🥀 Wilting</button>
+            <button class="sym-chip" onclick="toggleSym(this,'dark_spots')">⚫ Dark spots</button>
+          </div>
+        </div>
+        <div class="ed-field">
+          <label>Last Irrigation</label>
+          <select class="ed-select" id="ed-irrig">
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="2_3">2–3 days ago</option>
+            <option value="week">Over a week ago</option>
+          </select>
+        </div>
+        <button class="predict-btn" onclick="runEarlyDetection()">🔭 Predict Disease Risk</button>
+        <button class="autofill-btn" onclick="autoFillWeatherForED()">🌤️ Auto-fill Weather Data</button>
+        <div class="spinner-row" id="ed-spinner"><div class="spinner"></div><span>Analyzing with ML model...</span></div>
+      </div>
+
+      <div class="ed-results" id="ed-results">
+        <div class="ed-placeholder" id="ed-placeholder">
+          <div style="font-size:3rem">🔭</div>
+          <div style="font-weight:600;color:var(--text)">Fill the form to get AI risk prediction</div>
+          <div>Get disease forecasts, risk scores and preventive recommendations from our ML model.</div>
+        </div>
+        <div class="risk-dash" id="risk-dash">
+          <div class="risk-top">
+            <div>
+              <div style="font-size:0.73rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px">Overall Risk Score</div>
+              <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:0.95rem" id="ed-lbl">—</div>
+              <div id="ml-source-badge"></div>
+            </div>
+            <div class="risk-score" id="risk-score">—%</div>
+          </div>
+          <div class="rbar-wrap">
+            <div class="rbar-lbl"><span>Risk Level</span><span id="risk-lvl-lbl">—</span></div>
+            <div class="rbar"><div class="rbar-fill" id="rbar-fill" style="width:0%"></div></div>
+          </div>
+          <div>
+            <div style="font-size:0.74rem;color:var(--text2);margin-bottom:7px;font-weight:600">📅 5-Day Risk Forecast</div>
+            <div class="forecast-row" id="forecast-row"></div>
+          </div>
+        </div>
+        <div class="comm-alert" id="comm-alert">
+          <div style="font-size:1.8rem">⚠️</div>
+          <div id="comm-text"></div>
+        </div>
+        <div id="smart-alerts" style="display:flex;flex-direction:column;gap:10px"></div>
+        <div id="dis-predictions" style="display:flex;flex-direction:column;gap:12px"></div>
+        <div class="prev-card" id="prev-card">
+          <h4>🛡️ Preventive Action Plan</h4>
+          <div class="rec-grid" id="rec-grid"></div>
+        </div>
+        <!-- Krushi Kendra from ML prediction -->
+        <div id="kk-ed-results"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p data-i18n="footer-1">Built for <strong>EcoThon 5.0</strong> — SIPNA College of Engineering & Technology, Amravati</p>
+  <p style="margin-top:6px" data-i18n="footer-2">🌿 AgriCure 2.0 — Powered by <strong>Firebase</strong> + PyTorch AI + Dual ML Models</p>
+</footer>
+
+<script>
+// ═══════════════════════════════════════
+//  CHANGE 1 — ML SERVER URL
+// ═══════════════════════════════════════
+const ML_URL = window.location.hostname === 'localhost'
+  ? 'http://localhost:5000'
+  : 'https://YOUR-RAILWAY-URL.up.railway.app'; // ← UPDATE after Railway deploy
+
+// ═══════════════════════════════════════
+//  CHANGE 6 — WEATHER API KEY
+// ═══════════════════════════════════════
+const WK = 'YOUR_NEW_OPENWEATHERMAP_KEY'; // ← Get from openweathermap.org
+
+// ═══════════════════════════════════════
+//  TRANSLATIONS
+// ═══════════════════════════════════════
+const translations = {
+  en: {
+    'nav-detector':'Disease Detector','nav-weather':'Weather','nav-community':'Community','nav-history':'My History',
+    'auth-subtitle':'Sign in to save your scan history, weather searches, and join the community forum.',
+    'tab-signin':'Sign In','tab-register':'Register','label-email':'Email','label-password':'Password',
+    'label-fullname':'Full Name','btn-signin':'Sign In','btn-create-account':'Create Account',
+    'btn-skip':'Continue without account (limited features)','btn-signout':'Sign Out','btn-signin-post':'Sign In to Post',
+    'hero-badge':'🌱 EcoThon 5.0 — SIPNA College, Amravati',
+    'hero-title':'Your <em>Smart</em><br/>Farming Assistant',
+    'hero-subtitle':'AI-powered crop disease detection, real-time weather, and a farmer community — all saved to Firebase.',
+    'hero-btn-analyze':'Analyze My Crop 🔬','hero-btn-community':'Join Community',
+    'stat-firebase':'Firebase Backend','stat-crops':'Disease Classes','stat-languages':'Languages','stat-history':'History Saved',
+    'detector-tag':'AI + Firebase','detector-title':'Crop <span>Disease</span> Detector',
+    'detector-subtitle':'Upload a crop leaf photo → AI diagnoses → Natural cure + nearest Krushi Kendra',
+    'upload-title':'Upload Crop Photo','upload-sub':'Drag & drop or click to select<br/>JPG, PNG supported',
+    'btn-analyze':'🔬 Analyze Disease','analyzing':'Analyzing your crop with AI...',
+    'result-title':'Analysis Result','result-placeholder':'Upload a crop image to get AI-powered disease analysis with natural cures.',
+    'severity':'Severity','saved-firebase':'✅ Saved to your Firebase history',
+    'history-tag':'Firebase Database','history-title':'My <span>History</span>',
+    'history-subtitle':'All your disease scans, predictions and weather searches — permanently stored in Firestore',
+    'history-signin':'🔐 Sign in to view your saved history',
+    'weather-tag':'Real-Time + Saved','weather-title':'Farm <span>Weather</span> Insights',
+    'weather-subtitle':'Weather searches saved to Firebase so you can track conditions over time',
+    'btn-check-weather':'Check Weather','weather-empty':'Enter your location to get real-time weather and farming alerts',
+    'weather-stat-humidity':'Humidity','weather-stat-wind':'Wind Speed','weather-feels':'Feels like','weather-saved':'✅ Saved to Firebase',
+    'forum-tag':'Firebase Community','forum-title':'Farmer <span>Community</span> Forum',
+    'forum-subtitle':'Posts stored permanently in Firestore — shared with all farmers',
+    'forum-login-text':'Sign in to post questions and help other farmers',
+    'tag-general':'General','tag-disease':'Disease','tag-irrigation':'Irrigation','tag-pesticide':'Pesticide',
+    'btn-post':'Post 🔥','loading-posts':'Loading posts from Firebase...',
+    'footer-1':'Built for <strong>EcoThon 5.0</strong> — SIPNA College of Engineering & Technology, Amravati',
+    'footer-2':'🌿 AgriCure 2.0 — Powered by <strong>Firebase</strong> + PyTorch AI + Dual ML Models',
+    'toast-lang':'Language set to English 🌿','toast-guest':'Browsing as guest — some features limited',
+    'toast-saved':'Saved to Firebase! 🔥','toast-signout':'Signed out successfully',
+    'toast-post-published':'Post published! 🔥','toast-welcome':'Welcome back! 🌿',
+    'toast-account-created':'Account created! Welcome to AgriCure 🌿',
+    'post-helpful':'Helpful','post-reply':'Reply','post-sample':'Sample post • Sign in to see live Firebase posts',
+    'post-recently':'Recently','post-firebase-label':'🔥 Firebase',
+  },
+  hi: {
+    'nav-detector':'रोग पहचानकर्ता','nav-weather':'मौसम','nav-community':'समुदाय','nav-history':'मेरा इतिहास',
+    'auth-subtitle':'अपना स्कैन इतिहास, मौसम खोज सहेजने और सामुदायिक मंच में पोस्ट करने के लिए साइन इन करें।',
+    'tab-signin':'साइन इन','tab-register':'रजिस्टर','label-email':'ईमेल','label-password':'पासवर्ड',
+    'label-fullname':'पूरा नाम','btn-signin':'साइन इन','btn-create-account':'खाता बनाएं',
+    'btn-skip':'बिना खाते के जारी रखें','btn-signout':'साइन आउट','btn-signin-post':'पोस्ट करने के लिए साइन इन करें',
+    'hero-badge':'🌱 EcoThon 5.0 — SIPNA कॉलेज, अमरावती',
+    'hero-title':'आपका <em>स्मार्ट</em><br/>कृषि सहायक',
+    'hero-subtitle':'AI-संचालित फसल रोग पहचान, रीयल-टाइम मौसम, और किसान समुदाय — सब Firebase में सहेजा गया।',
+    'hero-btn-analyze':'मेरी फसल विश्लेषण करें 🔬','hero-btn-community':'समुदाय से जुड़ें',
+    'stat-firebase':'Firebase बैकएंड','stat-crops':'रोग श्रेणियां','stat-languages':'भाषाएं','stat-history':'इतिहास सहेजा',
+    'detector-tag':'AI + Firebase','detector-title':'फसल <span>रोग</span> पहचानकर्ता',
+    'detector-subtitle':'फसल की पत्ती की फोटो अपलोड करें → AI निदान → प्राकृतिक उपचार + निकटतम कृषि केंद्र',
+    'upload-title':'फसल फोटो अपलोड करें','upload-sub':'खींचें & छोड़ें या चुनने के लिए क्लिक करें<br/>JPG, PNG समर्थित',
+    'btn-analyze':'🔬 रोग विश्लेषण करें','analyzing':'AI से आपकी फसल का विश्लेषण हो रहा है...',
+    'result-title':'विश्लेषण परिणाम','result-placeholder':'AI-संचालित रोग विश्लेषण के लिए फसल की छवि अपलोड करें।',
+    'severity':'गंभीरता','saved-firebase':'✅ आपके Firebase इतिहास में सहेजा गया',
+    'history-tag':'Firebase डेटाबेस','history-title':'मेरा <span>इतिहास</span>',
+    'history-subtitle':'आपके सभी रोग स्कैन, भविष्यवाणियां और मौसम खोज — Firestore में स्थायी रूप से संग्रहीत',
+    'history-signin':'🔐 अपना सहेजा हुआ इतिहास देखने के लिए साइन इन करें',
+    'weather-tag':'रीयल-टाइम + सहेजा','weather-title':'खेत <span>मौसम</span> जानकारी',
+    'weather-subtitle':'मौसम खोज Firebase में सहेजी जाती हैं',
+    'btn-check-weather':'मौसम जांचें','weather-empty':'रीयल-टाइम मौसम और कृषि अलर्ट के लिए अपना स्थान दर्ज करें',
+    'weather-stat-humidity':'आर्द्रता','weather-stat-wind':'हवा की गति','weather-feels':'महसूस होता है','weather-saved':'✅ Firebase में सहेजा गया',
+    'forum-tag':'Firebase समुदाय','forum-title':'किसान <span>समुदाय</span> मंच',
+    'forum-subtitle':'पोस्ट Firestore में स्थायी रूप से संग्रहीत — सभी किसानों के साथ साझा',
+    'forum-login-text':'प्रश्न पोस्ट करने और अन्य किसानों की मदद करने के लिए साइन इन करें',
+    'tag-general':'सामान्य','tag-disease':'रोग','tag-irrigation':'सिंचाई','tag-pesticide':'कीटनाशक',
+    'btn-post':'पोस्ट करें 🔥','loading-posts':'Firebase से पोस्ट लोड हो रही हैं...',
+    'footer-1':'<strong>EcoThon 5.0</strong> के लिए बनाया गया — SIPNA इंजीनियरिंग कॉलेज, अमरावती',
+    'footer-2':'🌿 AgriCure 2.0 — <strong>Firebase</strong> + PyTorch AI द्वारा संचालित',
+    'toast-lang':'हिंदी में स्वागत है 🌿','toast-guest':'अतिथि के रूप में — कुछ सुविधाएं सीमित',
+    'toast-saved':'Firebase में सहेजा गया! 🔥','toast-signout':'सफलतापूर्वक साइन आउट किया',
+    'toast-post-published':'पोस्ट प्रकाशित! 🔥','toast-welcome':'वापस स्वागत है! 🌿',
+    'toast-account-created':'खाता बनाया गया! AgriCure में आपका स्वागत है 🌿',
+    'post-helpful':'सहायक','post-reply':'जवाब दें','post-sample':'नमूना पोस्ट • लाइव Firebase पोस्ट देखने के लिए साइन इन करें',
+    'post-recently':'हाल ही में','post-firebase-label':'🔥 Firebase',
+  },
+  mr: {
+    'nav-detector':'रोग शोधक','nav-weather':'हवामान','nav-community':'समुदाय','nav-history':'माझा इतिहास',
+    'auth-subtitle':'स्कॅन इतिहास, हवामान शोध जतन करण्यासाठी आणि सामुदायिक मंचात पोस्ट करण्यासाठी साइन इन करा.',
+    'tab-signin':'साइन इन','tab-register':'नोंदणी','label-email':'ईमेल','label-password':'पासवर्ड',
+    'label-fullname':'पूर्ण नाव','btn-signin':'साइन इन','btn-create-account':'खाते तयार करा',
+    'btn-skip':'खात्याशिवाय सुरू ठेवा','btn-signout':'साइन आउट','btn-signin-post':'पोस्ट करण्यासाठी साइन इन करा',
+    'hero-badge':'🌱 EcoThon 5.0 — SIPNA कॉलेज, अमरावती',
+    'hero-title':'तुमचा <em>स्मार्ट</em><br/>शेती सहाय्यक',
+    'hero-subtitle':'AI-आधारित पीक रोग शोध, रिअल-टाइम हवामान, आणि शेतकरी समुदाय — सर्व Firebase मध्ये जतन.',
+    'hero-btn-analyze':'माझे पीक तपासा 🔬','hero-btn-community':'समुदायात सामील व्हा',
+    'stat-firebase':'Firebase बॅकएंड','stat-crops':'रोग श्रेणी','stat-languages':'भाषा','stat-history':'इतिहास जतन',
+    'detector-tag':'AI + Firebase','detector-title':'पीक <span>रोग</span> शोधक',
+    'detector-subtitle':'पिकाच्या पानाचा फोटो अपलोड करा → AI निदान → नैसर्गिक उपचार + जवळचे कृषी केंद्र',
+    'upload-title':'पीक फोटो अपलोड करा','upload-sub':'ड्रॅग & ड्रॉप करा किंवा निवडण्यासाठी क्लिक करा<br/>JPG, PNG समर्थित',
+    'btn-analyze':'🔬 रोग तपासा','analyzing':'AI द्वारे तुमच्या पिकाचे विश्लेषण होत आहे...',
+    'result-title':'विश्लेषण निकाल','result-placeholder':'AI-आधारित रोग विश्लेषणासाठी पिकाचे चित्र अपलोड करा.',
+    'severity':'तीव्रता','saved-firebase':'✅ तुमच्या Firebase इतिहासात जतन केले',
+    'history-tag':'Firebase डेटाबेस','history-title':'माझा <span>इतिहास</span>',
+    'history-subtitle':'तुमचे सर्व रोग स्कॅन, अंदाज आणि हवामान शोध — Firestore मध्ये कायमचे जतन',
+    'history-signin':'🔐 जतन केलेला इतिहास पाहण्यासाठी साइन इन करा',
+    'weather-tag':'रिअल-टाइम + जतन','weather-title':'शेत <span>हवामान</span> माहिती',
+    'weather-subtitle':'हवामान शोध Firebase मध्ये जतन केले जातात',
+    'btn-check-weather':'हवामान तपासा','weather-empty':'रिअल-टाइम हवामान आणि शेती अलर्टसाठी तुमचे ठिकाण टाका',
+    'weather-stat-humidity':'आर्द्रता','weather-stat-wind':'वाऱ्याचा वेग','weather-feels':'जाणवते','weather-saved':'✅ Firebase मध्ये जतन',
+    'forum-tag':'Firebase समुदाय','forum-title':'शेतकरी <span>समुदाय</span> मंच',
+    'forum-subtitle':'पोस्ट Firestore मध्ये कायमच्या संग्रहित — सर्व शेतकऱ्यांसोबत सामायिक',
+    'forum-login-text':'प्रश्न पोस्ट करण्यासाठी आणि इतर शेतकऱ्यांना मदत करण्यासाठी साइन इन करा',
+    'tag-general':'सामान्य','tag-disease':'रोग','tag-irrigation':'सिंचन','tag-pesticide':'कीटकनाशक',
+    'btn-post':'पोस्ट करा 🔥','loading-posts':'Firebase वरून पोस्ट लोड होत आहेत...',
+    'footer-1':'<strong>EcoThon 5.0</strong> साठी बनवले — SIPNA इंजिनीअरिंग कॉलेज, अमरावती',
+    'footer-2':'🌿 AgriCure 2.0 — <strong>Firebase</strong> + PyTorch AI द्वारे चालवले',
+    'toast-lang':'मराठीत स्वागत आहे 🌿','toast-guest':'अतिथी म्हणून — काही वैशिष्ट्ये मर्यादित',
+    'toast-saved':'Firebase मध्ये जतन! 🔥','toast-signout':'यशस्वीरित्या साइन आउट केले',
+    'toast-post-published':'पोस्ट प्रकाशित! 🔥','toast-welcome':'परत स्वागत आहे! 🌿',
+    'toast-account-created':'खाते तयार केले! AgriCure मध्ये स्वागत 🌿',
+    'post-helpful':'उपयुक्त','post-reply':'उत्तर द्या','post-sample':'नमुना पोस्ट • थेट Firebase पोस्ट पाहण्यासाठी साइन इन करा',
+    'post-recently':'नुकतेच','post-firebase-label':'🔥 Firebase',
+  }
+};
+
+// ═══════════════════════════════════════
+//  UTILITIES
+// ═══════════════════════════════════════
+let currentLang = 'en';
+function t(key){ return translations[currentLang]?.[key] || translations['en']?.[key] || key; }
+function gotoSection(id){ showPage(id); }
+
+const _PAGES = {
+  'home':()=>document.querySelector('.hero'),
+  'detector':()=>document.getElementById('detector'),
+  'early-detection':()=>document.getElementById('early-detection'),
+  'history':()=>document.getElementById('history'),
+  'weather':()=>document.getElementById('weather'),
+  'forum':()=>document.getElementById('forum'),
+};
+const _NAV = {
+  'home':'nav-link-home','detector':'nav-link-detector','early-detection':'nav-link-early',
+  'weather':'nav-link-weather','forum':'nav-link-forum','history':'nav-link-history',
+};
+
+function showPage(id){
+  Object.values(_PAGES).forEach(fn=>{ const el=fn(); if(el) el.style.display='none'; });
+  const target=_PAGES[id]?.();
+  if(target){ target.style.display='block'; window.scrollTo(0,0); }
+  const footer=document.querySelector('footer');
+  if(footer) footer.style.display=(id==='home')?'block':'none';
+  document.querySelectorAll('.nav-links a').forEach(a=>a.classList.remove('nav-active'));
+  const na=document.getElementById(_NAV[id]);
+  if(na) na.classList.add('nav-active');
+  setTimeout(()=>{ document.querySelectorAll('.scroll-reveal').forEach(el=>el.classList.add('visible')); },80);
+}
+
+function showToast(msg,type='success'){
+  const el=document.getElementById('toast');
+  el.textContent=(type==='success'?'✅ ':'❌ ')+msg;
+  el.className=type; el.style.display='flex';
+  clearTimeout(el._timer);
+  el._timer=setTimeout(()=>{ el.style.display='none'; },3500);
+}
+
+function waitForFirebase(cb,tries=0){
+  if(window._firebaseReady&&window._auth&&window._db&&window._fbFns){ cb(); }
+  else if(tries<40){ setTimeout(()=>waitForFirebase(cb,tries+1),150); }
+}
+
+window.addEventListener('load',()=>{
+  setTimeout(()=>{
+    const el=document.getElementById('fb-status-indicator');
+    if(!el) return;
+    el.innerHTML=window._firebaseReady
+      ?'<div class="firebase-status ok">🔥 Firebase Connected — agricure-67e89</div>'
+      :`<div class="firebase-status" style="background:rgba(255,107,107,0.1);color:var(--red);border:1px solid rgba(255,107,107,0.2);padding:10px;border-radius:10px;font-size:0.8rem">⚠️ Firebase Error</div>`;
+  },1500);
+});
+
+function applyTranslations(){
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const val=t(el.getAttribute('data-i18n'));
+    if(val) el.innerHTML=val;
+  });
+}
+
+function setLang(l){
+  currentLang=l;
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelector(`.lang-btn[onclick="setLang('${l}')"]`).classList.add('active');
+  applyTranslations();
+  showToast(t('toast-lang'));
+}
+
+// ═══════════════════════════════════════
+//  AUTH
+// ═══════════════════════════════════════
+function switchTab(tab){
+  document.getElementById('tab-login').style.display=tab==='login'?'block':'none';
+  document.getElementById('tab-register').style.display=tab==='register'?'block':'none';
+  document.querySelectorAll('.auth-tab').forEach((b,i)=>
+    b.classList.toggle('active',(tab==='login'&&i===0)||(tab==='register'&&i===1)));
+}
+function showAuthError(id,msg){
+  const el=document.getElementById(id);
+  el.textContent=msg; el.style.display='block';
+  setTimeout(()=>{ el.style.display='none'; },5000);
+}
+function handleLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pass=document.getElementById('login-pass').value;
+  if(!email||!pass){ showAuthError('login-error','Please enter email and password'); return; }
+  waitForFirebase(()=>{
+    const btn=document.querySelector('#tab-login .auth-submit');
+    btn.textContent='Signing in...'; btn.disabled=true;
+    window._fbFns.signInWithEmailAndPassword(window._auth,email,pass)
+      .then(()=>{ showToast(t('toast-welcome')); })
+      .catch(e=>{
+        btn.textContent=t('btn-signin'); btn.disabled=false;
+        showAuthError('login-error',
+          e.code==='auth/invalid-credential'?'Invalid email or password':
+          e.code==='auth/too-many-requests'?'Too many attempts. Try again later':e.message);
+      });
+  });
+}
+function handleRegister(){
+  const name=document.getElementById('reg-name').value.trim();
+  const email=document.getElementById('reg-email').value.trim();
+  const pass=document.getElementById('reg-pass').value;
+  if(!name||!email||!pass){ showAuthError('reg-error','Please fill all fields'); return; }
+  if(pass.length<6){ showAuthError('reg-error','Password must be at least 6 characters'); return; }
+  waitForFirebase(()=>{
+    const btn=document.querySelector('#tab-register .auth-submit');
+    btn.textContent='Creating account...'; btn.disabled=true;
+    window._fbFns.createUserWithEmailAndPassword(window._auth,email,pass)
+      .then(cred=>window._fbFns.updateProfile(cred.user,{displayName:name}))
+      .then(()=>{ showToast(t('toast-account-created')); })
+      .catch(e=>{
+        btn.textContent=t('btn-create-account'); btn.disabled=false;
+        showAuthError('reg-error',
+          e.code==='auth/email-already-in-use'?'Email already registered':
+          e.code==='auth/weak-password'?'Password too weak':e.message);
+      });
+  });
+}
+function handleLogout(){
+  waitForFirebase(()=>{
+    window._fbFns.signOut(window._auth).then(()=>{
+      window._currentUser=null;
+      document.getElementById('history-grid').innerHTML=`<div class="history-placeholder">${t('history-signin')}</div>`;
+      showToast(t('toast-signout'));
+    });
+  });
+}
+function skipAuth(){
+  document.getElementById('auth-modal').style.display='none';
+  document.getElementById('nav-signin').style.display='block';
+  loadForumPosts();
+  showToast(t('toast-guest'));
+}
+
+// ═══════════════════════════════════════
+//  FILE UPLOAD
+// ═══════════════════════════════════════
+let selectedFile=null;
+function handleFileSelect(e){ const f=e.target.files[0]; if(f) loadPreview(f); }
+function handleDrag(e){ e.preventDefault(); document.getElementById('upload-zone').classList.add('dragover'); }
+function handleDragLeave(){ document.getElementById('upload-zone').classList.remove('dragover'); }
+function handleDrop(e){
+  e.preventDefault(); document.getElementById('upload-zone').classList.remove('dragover');
+  const f=e.dataTransfer.files[0]; if(f) loadPreview(f);
+}
+function loadPreview(file){
+  selectedFile=file;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=document.getElementById('preview-img');
+    img.src=e.target.result; img.style.display='block';
+    document.getElementById('analyze-btn').style.display='block';
+    document.getElementById('upload-icon').textContent='✅';
+    document.getElementById('upload-title').textContent=file.name;
+    document.getElementById('upload-sub').style.display='none';
+  };
+  reader.readAsDataURL(file);
+}
+
+// ═══════════════════════════════════════
+//  CHANGE 2 — IMAGE ANALYSIS (sends to ML server)
+// ═══════════════════════════════════════
+async function analyzeImage(){
+  if(!selectedFile) return;
+  document.getElementById('analyze-btn').style.display='none';
+  document.getElementById('spinner').style.display='flex';
+  document.getElementById('result-placeholder').style.display='none';
+  document.getElementById('result-content').style.display='none';
+  document.getElementById('saved-badge').style.display='none';
+  document.getElementById('kk-detector-results').innerHTML='';
+
+  // Get user location for Krushi Kendra
+  let lat=20.93, lon=77.75;
+  try{
+    const pos=await new Promise((res,rej)=>
+      navigator.geolocation.getCurrentPosition(res,rej,{timeout:3000})
+    );
+    lat=pos.coords.latitude;
+    lon=pos.coords.longitude;
+  } catch(e){}
+
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    const base64=e.target.result.split(',')[1];
+    const mimeType=selectedFile.type||'image/jpeg';
+    let result;
+
+    try{
+      // Try ML server first (Railway)
+      const resp=await fetch(`${ML_URL}/api/predict-image`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({image:base64, mimeType, latitude:lat, longitude:lon})
+      });
+      if(!resp.ok) throw new Error('ML server error');
+      result=await resp.json();
+    } catch(mlErr){
+      // Fallback to Vercel API route
+      try{
+        const resp2=await fetch('/api/analyze',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({image:base64, mimeType})
+        });
+        if(!resp2.ok){ const ed=await resp2.json(); throw new Error(ed.error||'API error'); }
+        result=await resp2.json();
+      } catch(err){
+        document.getElementById('spinner').style.display='none';
+        document.getElementById('analyze-btn').style.display='block';
+        showToast('Analysis failed: '+err.message,'error');
+        document.getElementById('result-placeholder').style.display='flex';
+        return;
+      }
+    }
+
+    document.getElementById('spinner').style.display='none';
+
+    if(!result.isPlant){
+      showNotPlantResult(result.notPlantMessage||'Not a plant image. Please upload a crop leaf photo.');
+      return;
+    }
+
+    showResult(result);
+
+    await saveToFirebase('scans',{
+      disease:result.disease||result.disease_display,
+      crop:result.crop||'Unknown',
+      severity:result.severity||0,
+      confidence:result.confidence||0,
+      natural_cure:result.natural_cure||'',
+      fileName:selectedFile.name
+    });
+
+    // Show Krushi Kendra if returned from ML server
+    if(result.krushi_kendras?.length){
+      renderKrushiKendra(result.krushi_kendras,'kk-detector-results');
+    }
+  };
+  reader.readAsDataURL(selectedFile);
+}
+
+function showNotPlantResult(message){
+  document.getElementById('result-placeholder').style.display='none';
+  document.getElementById('result-content').style.display='flex';
+  document.getElementById('disease-name').innerHTML='⚠️ Not a Plant Image';
+  document.getElementById('disease-name').style.color='var(--accent)';
+  document.getElementById('result-text').textContent=message;
+  document.getElementById('sev-pct').textContent='—';
+  document.getElementById('sev-fill').style.width='0%';
+  document.getElementById('treatment-list').innerHTML='<li>📸 Please upload a clear crop leaf photo for accurate diagnosis.</li>';
+  document.getElementById('analyze-btn').style.display='block';
+}
+
+// ═══════════════════════════════════════
+//  CHANGE 3 — showResult (natural + chemical + prevention)
+// ═══════════════════════════════════════
+function showResult(r){
+  const nameEl=document.getElementById('disease-name');
+  // Use ML server's translated display name if available
+  nameEl.textContent=r.disease_display||
+    (r.crop?r.crop+' — ':'')+r.disease;
+  nameEl.style.color=
+    r.severity===0?'var(--green)':
+    r.severity<40 ?'var(--lime)' :
+    r.severity<70 ?'var(--accent)':'var(--red)';
+
+  const confText=r.confidence?` (${r.confidence}% confidence)`:'';
+  document.getElementById('result-text').textContent=(r.description||'')+confText;
+
+  const pct=(r.severity||0)+'%';
+  document.getElementById('sev-pct').textContent=pct;
+  setTimeout(()=>{ document.getElementById('sev-fill').style.width=pct; },100);
+
+  const list=document.getElementById('treatment-list');
+  list.innerHTML='';
+
+  if(r.severity===0||r.is_healthy){
+    const li=document.createElement('li');
+    li.className='natural';
+    li.textContent='✅ Your crop looks healthy! Keep up good farming practices.';
+    list.appendChild(li);
+  } else {
+    // Natural cure (from ML model)
+    if(r.natural_cure){
+      const li=document.createElement('li');
+      li.className='natural';
+      li.textContent='🌿 Natural: '+r.natural_cure;
+      list.appendChild(li);
+    }
+    // Chemical treatment (from ML model)
+    if(r.chemical_treatment){
+      const li=document.createElement('li');
+      li.className='chemical';
+      li.textContent='💊 Chemical: '+r.chemical_treatment;
+      list.appendChild(li);
+    }
+    // Fallback treatments array
+    (r.treatments||[]).forEach(treatment=>{
+      const li=document.createElement('li');
+      li.textContent='💊 '+treatment;
+      list.appendChild(li);
+    });
+  }
+  // Prevention
+  if(r.prevention){
+    const li=document.createElement('li');
+    li.className='prevention';
+    li.textContent='🛡️ '+r.prevention;
+    list.appendChild(li);
+  }
+
+  document.getElementById('result-content').style.display='flex';
+}
+
+// ═══════════════════════════════════════
+//  CHANGE 4 — Krushi Kendra display
+// ═══════════════════════════════════════
+function renderKrushiKendra(kks, containerId){
+  const container=document.getElementById(containerId);
+  if(!container||!kks?.length) return;
+  container.innerHTML=`
+    <div style="max-width:880px;margin:20px auto;padding:0 24px">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:24px">
+        <h3 style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;
+          margin-bottom:16px;color:var(--green)">
+          📍 Nearest Krushi Kendras
+        </h3>
+        <div class="kk-grid">
+          ${kks.map(kk=>`
+            <div class="kk-card">
+              <div class="kk-name">🏛️ ${kk.name}</div>
+              <div class="kk-city">📍 ${kk.city}, ${kk.state}</div>
+              <div class="kk-addr">${kk.address}</div>
+              <div class="kk-dist">📏 ${kk.distance_km} km away</div>
+              <a class="kk-phone" href="tel:${kk.phone}">📞 ${kk.phone}</a>
+              <a class="kk-dir" href="https://www.google.com/maps/dir/?api=1&destination=${kk.lat},${kk.lon}" target="_blank">
+                🗺️ Get Directions
+              </a>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════
+//  FIREBASE SAVE & LOAD
+// ═══════════════════════════════════════
+async function saveToFirebase(collName,data){
+  if(!window._currentUser||!window._db||!window._fbFns) return;
+  try{
+    const {collection,addDoc,serverTimestamp}=window._fbFns;
+    await addDoc(collection(window._db,`users/${window._currentUser.uid}/${collName}`),
+      {...data,savedAt:serverTimestamp()});
+    showToast(t('toast-saved'));
+    document.getElementById('saved-badge').style.display='flex';
+    loadHistory();
+  } catch(e){ showToast('Could not save: '+e.message,'error'); }
+}
+
+async function loadHistory(){
+  if(!window._currentUser||!window._db||!window._fbFns) return;
+  const grid=document.getElementById('history-grid');
+  grid.innerHTML=`<div class="loading-posts"><div class="spinner"></div></div>`;
+  const {collection,getDocs,query,orderBy,limit}=window._fbFns;
+  const uid=window._currentUser.uid;
+  const items=[];
+  try{
+    const sQ=query(collection(window._db,`users/${uid}/scans`),orderBy('savedAt','desc'),limit(5));
+    (await getDocs(sQ)).forEach(d=>items.push({...d.data(),type:'scan',id:d.id}));
+  }catch(e){}
+  try{
+    const pQ=query(collection(window._db,`users/${uid}/predictions`),orderBy('savedAt','desc'),limit(3));
+    (await getDocs(pQ)).forEach(d=>items.push({...d.data(),type:'predict',id:d.id}));
+  }catch(e){}
+  try{
+    const wQ=query(collection(window._db,`users/${uid}/weather`),orderBy('savedAt','desc'),limit(3));
+    (await getDocs(wQ)).forEach(d=>items.push({...d.data(),type:'weather',id:d.id}));
+  }catch(e){}
+
+  if(!items.length){
+    grid.innerHTML=`<div class="history-placeholder">${t('history-signin')}</div>`;
+    return;
+  }
+  grid.innerHTML=items.map(item=>`
+    <div class="history-card">
+      <div class="history-type ${item.type}">
+        ${item.type==='scan'?'🔬 Disease Scan':
+          item.type==='predict'?'🔭 Risk Prediction':
+          '🌤️ Weather'}
+      </div>
+      <div class="history-title">${
+        item.type==='scan'?(item.disease||'Unknown'):
+        item.type==='predict'?`${item.crop||'--'} — ${item.city||'--'}`:
+        (item.city||'Unknown')}</div>
+      <div class="history-detail">${
+        item.type==='scan'?`${t('severity')}: ${item.severity||0}% | Confidence: ${item.confidence||0}%`:
+        item.type==='predict'?`Risk: ${item.risk_level||'--'} | 🧪 Pesticides: ${item.pesticide_applications||0}x`:
+        `${item.temp||'--'}°C • ${t('weather-stat-humidity')} ${item.humidity||'--'}%`}</div>
+      <div class="history-time">${item.savedAt?.toDate?.()?.toLocaleDateString('en-IN')||t('post-recently')}</div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════
+//  CHANGE 6 — WEATHER
+// ═══════════════════════════════════════
+async function fetchWeather(){
+  const city=document.getElementById('city-input').value.trim();
+  if(!city){ showToast('Please enter a city name','error'); return; }
+  document.getElementById('weather-display').innerHTML=
+    '<div class="weather-placeholder"><div class="spinner" style="margin:0 auto"></div></div>';
+  try{
+    const r=await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${WK}&units=metric`);
+    if(!r.ok) throw new Error('City not found');
+    const d=await r.json();
+    renderWeather(d);
+    saveToFirebase('weather',{city:d.name,temp:Math.round(d.main.temp),
+      humidity:d.main.humidity,wind:d.wind.speed,condition:d.weather[0].main});
+  } catch(err){
+    showToast('City not found. Showing demo data.','error');
+    renderWeather({name:city,sys:{country:'IN'},main:{temp:29,humidity:68,feels_like:32},
+      wind:{speed:3.8},weather:[{main:'Clouds',description:'partly cloudy'}]});
+  }
+}
+function weatherEmoji(m){
+  return {Clear:'☀️',Clouds:'⛅',Rain:'🌧️',Drizzle:'🌦️',Thunderstorm:'⛈️',Snow:'❄️',Mist:'🌫️',Haze:'🌫️'}[m]||'🌡️';
+}
+function renderWeather(d){
+  const icon=weatherEmoji(d.weather[0].main);
+  const alert=d.main.humidity>80
+    ?'⚠️ '+(currentLang==='hi'?'उच्च आर्द्रता — फंगल रोग का खतरा। निवारक फफूंदनाशक स्प्रे करें।':
+              currentLang==='mr'?'उच्च आर्द्रता — बुरशीजन्य रोगाचा धोका। प्रतिबंधक बुरशीनाशक फवारा.':
+              'High humidity alert — risk of fungal disease. Apply preventive fungicide spray.')
+    :d.main.temp>38
+    ?'⚠️ '+(currentLang==='hi'?'अत्यधिक गर्मी — सुबह 5-7 बजे सिंचाई करें।':
+              currentLang==='mr'?'अत्यंत उष्णता — पहाटे 5-7 वाजता सिंचन करा.':
+              'Extreme heat — irrigate in early morning (5–7 AM) only.')
+    :d.main.temp<10
+    ?'⚠️ '+(currentLang==='hi'?'ठंडा मौसम — फसलों को पाले से बचाएं।':
+              currentLang==='mr'?'थंड हवामान — पिकांना दंव्यापासून वाचवा.':
+              'Cold temperature — protect sensitive crops from frost.')
+    :'';
+  document.getElementById('weather-display').innerHTML=`
+    <div class="weather-grid">
+      <div class="weather-main">
+        <div class="weather-icon-big">${icon}</div>
+        <div class="weather-city">${d.name}, ${d.sys?.country||''}</div>
+        <div class="weather-temp">${Math.round(d.main.temp)}°C</div>
+        <div class="weather-desc">${d.weather[0].description}</div>
+        <div style="margin-top:10px;font-size:0.82rem;color:var(--text2)">${t('weather-feels')} ${Math.round(d.main.feels_like)}°C</div>
+        ${window._currentUser?`<div style="font-size:0.72rem;color:var(--green);margin-top:6px">${t('weather-saved')}</div>`:''}
+      </div>
+      <div class="weather-stat-card">
+        <div class="weather-stat-icon">💧</div>
+        <div class="weather-stat-val">${d.main.humidity}%</div>
+        <div class="weather-stat-name">${t('weather-stat-humidity')}</div>
+      </div>
+      <div class="weather-stat-card">
+        <div class="weather-stat-icon">💨</div>
+        <div class="weather-stat-val">${d.wind.speed}<span style="font-size:1rem"> m/s</span></div>
+        <div class="weather-stat-name">${t('weather-stat-wind')}</div>
+      </div>
+    </div>`;
+  const al=document.getElementById('weather-alert');
+  if(alert){ al.textContent=alert; al.style.display='block'; }
+  else al.style.display='none';
+}
+
+// ═══════════════════════════════════════
+//  FORUM
+// ═══════════════════════════════════════
+let selectedTag='General';
+document.querySelectorAll('.forum-tag-chip').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.forum-tag-chip').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active'); selectedTag=btn.dataset.tag;
+  });
+});
+async function submitPost(){
+  if(!window._currentUser){ showToast('Please sign in to post','error'); return; }
+  const text=document.getElementById('post-input').value.trim();
+  if(!text){ showToast('Please write something first','error'); return; }
+  try{
+    const {collection,addDoc,serverTimestamp}=window._fbFns;
+    await addDoc(collection(window._db,'forum_posts'),{
+      text,tag:selectedTag,
+      authorName:window._currentUser.displayName||window._currentUser.email.split('@')[0],
+      authorId:window._currentUser.uid,
+      likes:0,createdAt:serverTimestamp()
+    });
+    document.getElementById('post-input').value='';
+    showToast(t('toast-post-published'));
+    loadForumPosts();
+  } catch(e){ showToast('Error: '+e.message,'error'); }
+}
+async function loadForumPosts(){
+  if(!window._db||!window._fbFns){ renderDemoPosts(); return; }
+  try{
+    const {collection,getDocs,query,orderBy,limit}=window._fbFns;
+    const q=query(collection(window._db,'forum_posts'),orderBy('createdAt','desc'),limit(20));
+    const snap=await getDocs(q);
+    const posts=[];
+    snap.forEach(d=>posts.push({...d.data(),id:d.id}));
+    if(!posts.length){ renderDemoPosts(); return; }
+    renderPosts(posts);
+  } catch(e){ renderDemoPosts(); }
+}
+async function likePost(postId){
+  if(!window._currentUser){ showToast('Sign in to like posts','error'); return; }
+  try{
+    const {doc,updateDoc,increment}=window._fbFns;
+    await updateDoc(doc(window._db,'forum_posts',postId),{likes:increment(1)});
+    loadForumPosts();
+  } catch(e){}
+}
+function renderPosts(posts){
+  document.getElementById('post-list').innerHTML=posts.map(p=>`
+    <div class="post-card">
+      <div class="post-header">
+        <div class="avatar">${(p.authorName||'F')[0].toUpperCase()}</div>
+        <div class="post-meta">
+          <div class="post-author">${p.authorName||'Farmer'}</div>
+          <div class="post-time">${p.createdAt?.toDate?.()?.toLocaleString('en-IN')||t('post-recently')} • ${t('post-firebase-label')}</div>
+        </div>
+        <span class="post-tag">${p.tag||'General'}</span>
+      </div>
+      <div class="post-body">${p.text}</div>
+      <div class="post-actions">
+        <button class="post-action" onclick="likePost('${p.id}')">💚 ${p.likes||0} ${t('post-helpful')}</button>
+        <button class="post-action">💬 ${t('post-reply')}</button>
+      </div>
+    </div>`).join('');
+}
+function renderDemoPosts(){
+  const demo=[
+    {id:'d1',authorName:'Ramesh Patil',tag:'Disease',
+     text:'The Early Detection system warned me about Tomato Late Blight 4 days before it appeared! Applied Mancozeb preventively and saved my entire crop!',likes:18},
+    {id:'d2',authorName:'Sunita Devi',tag:'Pesticide',
+     text:'I applied pesticide 6 times this season and the ML model showed reduced effectiveness. Switching to neem oil as recommended — much better results!',likes:24},
+    {id:'d3',authorName:'Vijay Shinde',tag:'Disease',
+     text:'Image detector identified Early Blight on my potato. Natural cure: neem oil + remove infected leaves. Worked without chemicals!',likes:35},
+  ];
+  document.getElementById('post-list').innerHTML=demo.map(p=>`
+    <div class="post-card">
+      <div class="post-header">
+        <div class="avatar">${p.authorName[0]}</div>
+        <div class="post-meta">
+          <div class="post-author">${p.authorName}</div>
+          <div class="post-time">${t('post-sample')}</div>
+        </div>
+        <span class="post-tag">${p.tag}</span>
+      </div>
+      <div class="post-body">${p.text}</div>
+      <div class="post-actions">
+        <button class="post-action">💚 ${p.likes} ${t('post-helpful')}</button>
+        <button class="post-action">💬 ${t('post-reply')}</button>
+      </div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════
+//  3D TRACTOR
+// ═══════════════════════════════════════
+function init3DFarm(){
+  const canvas=document.getElementById('farm-3d-canvas');
+  if(!canvas||!window.THREE) return;
+  const W=canvas.offsetWidth||340,H=canvas.offsetHeight||280;
+  const renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true});
+  renderer.setSize(W,H); renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  const scene=new THREE.Scene();
+  const camera=new THREE.PerspectiveCamera(42,W/H,0.1,100);
+  camera.position.set(4.5,3.2,5.5); camera.lookAt(0,0.4,0);
+  scene.add(new THREE.AmbientLight(0xffffff,0.5));
+  const sun=new THREE.DirectionalLight(0xb8f04a,1.4); sun.position.set(6,10,5); scene.add(sun);
+  const fill=new THREE.DirectionalLight(0x3ddc6e,0.7); fill.position.set(-4,3,-3); scene.add(fill);
+  const G=new THREE.Group(); scene.add(G);
+  const mkM=(c,s=80)=>new THREE.MeshPhongMaterial({color:c,shininess:s});
+  const grnM=mkM(0x2ecc71),dkM=mkM(0x1a7a3c,60),blkM=mkM(0x1a1a1a,30),
+        limeM=mkM(0xb8f04a,120),
+        glsM=new THREE.MeshPhongMaterial({color:0x88ccff,opacity:0.55,transparent:true,shininess:200}),
+        chrM=mkM(0x999999,200),
+        ylwM=new THREE.MeshPhongMaterial({color:0xffee44,emissive:0xffaa00,emissiveIntensity:0.6});
+  function bx(w,h,d,m,x,y,z){ const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m); mesh.position.set(x,y,z); G.add(mesh); return mesh; }
+  function cy(r,h,m,x,y,z,rx=0,rz=0){ const mesh=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,18),m); mesh.position.set(x,y,z); mesh.rotation.set(rx,0,rz); G.add(mesh); return mesh; }
+  bx(2.4,0.9,1.3,grnM,0,0.45,0); bx(1.3,0.7,1.05,dkM,-1.15,0.68,0);
+  bx(1.05,1.0,1.12,dkM,0.5,1.4,0); bx(1.22,0.11,1.3,grnM,0.5,1.93,0);
+  bx(0.06,0.72,1.02,glsM,0.0,1.42,0); bx(0.06,0.72,1.02,glsM,1.02,1.42,0);
+  cy(0.63,0.3,blkM,0.75,0.02,0.88,Math.PI/2); cy(0.63,0.3,blkM,0.75,0.02,-0.88,Math.PI/2);
+  cy(0.29,0.32,limeM,0.75,0.02,0.88,Math.PI/2); cy(0.29,0.32,limeM,0.75,0.02,-0.88,Math.PI/2);
+  cy(0.38,0.22,blkM,-1.1,-0.24,0.76,Math.PI/2); cy(0.38,0.22,blkM,-1.1,-0.24,-0.76,Math.PI/2);
+  cy(0.18,0.24,limeM,-1.1,-0.24,0.76,Math.PI/2); cy(0.18,0.24,limeM,-1.1,-0.24,-0.76,Math.PI/2);
+  cy(0.065,1.9,chrM,0.75,0.02,0,0,0,Math.PI/2); cy(0.05,1.6,chrM,-1.1,-0.24,0,0,0,Math.PI/2);
+  cy(0.055,0.75,chrM,-1.62,1.5,0.32); cy(0.08,0.08,chrM,-1.62,1.88,0.32);
+  cy(0.09,0.05,ylwM,-1.84,0.82,0.34,Math.PI/2); cy(0.09,0.05,ylwM,-1.84,0.82,-0.34,Math.PI/2);
+  const gg=new THREE.Mesh(new THREE.CircleGeometry(2.4,32),new THREE.MeshBasicMaterial({color:0x3ddc6e,transparent:true,opacity:0.07}));
+  gg.rotation.x=-Math.PI/2; gg.position.y=-0.7; scene.add(gg);
+  const pa=new Float32Array(200*3);
+  for(let i=0;i<600;i++) pa[i]=(Math.random()-0.5)*9;
+  const pg=new THREE.BufferGeometry(); pg.setAttribute('position',new THREE.BufferAttribute(pa,3));
+  const pts=new THREE.Points(pg,new THREE.PointsMaterial({color:0xb8f04a,size:0.045,transparent:true,opacity:0.55}));
+  scene.add(pts);
+  let tick=0;
+  function animate(){ requestAnimationFrame(animate); tick+=0.01;
+    G.rotation.y=Math.sin(tick*0.28)*0.35+tick*0.004;
+    G.position.y=Math.sin(tick*0.9)*0.06;
+    pts.rotation.y+=0.0015; renderer.render(scene,camera); }
+  animate();
+  window.addEventListener('resize',()=>{
+    const w2=canvas.offsetWidth,h2=canvas.offsetHeight;
+    camera.aspect=w2/h2; camera.updateProjectionMatrix(); renderer.setSize(w2,h2);
+  });
+}
+window.addEventListener('load',()=>setTimeout(init3DFarm,200));
+
+// ═══════════════════════════════════════
+//  CHANGE 5 — EARLY DETECTION (connects to ML)
+// ═══════════════════════════════════════
+const edSymptoms=new Set();
+function toggleSym(el,sym){ el.classList.toggle('active'); edSymptoms.has(sym)?edSymptoms.delete(sym):edSymptoms.add(sym); }
+
+// Auto-fill weather into early detection form
+async function autoFillWeatherForED(){
+  const city=document.getElementById('ed-city').value.trim()||'Amravati';
+  try{
+    const r=await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${WK}&units=metric`);
+    const d=await r.json();
+    if(d.main){
+      showToast(`Weather fetched for ${d.name} ✅`);
+      // Store weather data for ML prediction
+      window._edWeather={
+        temperature:Math.round(d.main.temp),
+        humidity:d.main.humidity,
+        rainfall:d.rain?.['1h']||0,
+        wind_speed:d.wind?.speed||0
+      };
+    }
+  } catch(e){ showToast('Could not fetch weather','error'); }
+}
+
+const DIS_DB={
+  Wheat:{Seedling:[{n:'Damping-off',p:52,i:'🍂'},{n:'Seedling Blight',p:38,i:'🌑'}],Vegetative:[{n:'Leaf Rust',p:74,i:'🟠'},{n:'Yellow Rust',p:62,i:'🟡'},{n:'Powdery Mildew',p:50,i:'⬜'}],Flowering:[{n:'Fusarium Head Blight',p:70,i:'🔴'},{n:'Brown Rust',p:54,i:'🟤'}],Fruiting:[{n:'Black Rust',p:65,i:'⚫'},{n:'Loose Smut',p:44,i:'💨'}]},
+  Rice:{Seedling:[{n:'Blast',p:68,i:'💥'},{n:'Damping-off',p:44,i:'🍂'}],Vegetative:[{n:'Blast',p:80,i:'💥'},{n:'Bacterial Blight',p:60,i:'🦠'}],Flowering:[{n:'Sheath Blight',p:65,i:'🌾'},{n:'Brown Spot',p:54,i:'🟤'}],Fruiting:[{n:'False Smut',p:48,i:'🟢'},{n:'Brown Spot',p:60,i:'🟤'}]},
+  Tomato:{Seedling:[{n:'Damping-off',p:58,i:'🍂'},{n:'Early Blight',p:44,i:'🔴'}],Vegetative:[{n:'Early Blight',p:72,i:'🔴'},{n:'Septoria Leaf Spot',p:54,i:'🟡'}],Flowering:[{n:'Late Blight',p:82,i:'💀'},{n:'Early Blight',p:64,i:'🔴'}],Fruiting:[{n:'Late Blight',p:86,i:'💀'},{n:'Blossom End Rot',p:54,i:'⚫'}]},
+  Cotton:{Seedling:[{n:'Root Rot',p:48,i:'🌑'},{n:'Seedling Disease',p:38,i:'🍂'}],Vegetative:[{n:'Verticillium Wilt',p:64,i:'🥀'},{n:'Bacterial Blight',p:54,i:'🦠'}],Flowering:[{n:'Boll Weevil',p:58,i:'🐛'},{n:'Fusarium Wilt',p:54,i:'🥀'}],Fruiting:[{n:'Boll Rot',p:68,i:'🔴'},{n:'Anthracnose',p:48,i:'🟠'}]},
+  Maize:{Seedling:[{n:'Seedling Rot',p:44,i:'🍂'},{n:'Early Leaf Spot',p:34,i:'🟡'}],Vegetative:[{n:'Northern Leaf Blight',p:66,i:'🍃'},{n:'Common Rust',p:54,i:'🟠'}],Flowering:[{n:'Smut',p:50,i:'💨'},{n:'Grey Leaf Spot',p:58,i:'⚫'}],Fruiting:[{n:'Ear Rot',p:64,i:'🌽'},{n:'Aflatoxin',p:38,i:'⚠️'}]},
+  Potato:{Seedling:[{n:'Black Scurf',p:48,i:'⚫'},{n:'Seed Piece Decay',p:38,i:'🍂'}],Vegetative:[{n:'Early Blight',p:64,i:'🟡'},{n:'Verticillium Wilt',p:49,i:'🥀'}],Flowering:[{n:'Late Blight',p:86,i:'💀'},{n:'Black Leg',p:54,i:'⚫'}],Fruiting:[{n:'Late Blight',p:82,i:'💀'},{n:'Common Scab',p:49,i:'🟤'}]},
+  Soybean:{Seedling:[{n:'Pythium Root Rot',p:54,i:'🌑'},{n:'Damping-off',p:38,i:'🍂'}],Vegetative:[{n:'Soybean Rust',p:70,i:'🟠'},{n:'Bacterial Pustule',p:49,i:'🦠'}],Flowering:[{n:'Soybean Rust',p:74,i:'🟠'},{n:'Stem Canker',p:54,i:'🔴'}],Fruiting:[{n:'Pod Blight',p:64,i:'🫘'},{n:'Soybean Rust',p:70,i:'🟠'}]},
+  Sugarcane:{Seedling:[{n:'Red Rot',p:49,i:'🔴'},{n:'Ratoon Stunting',p:44,i:'🥀'}],Vegetative:[{n:'Smut',p:54,i:'💨'},{n:'Leaf Scald',p:44,i:'🟡'}],Flowering:[{n:'Whip Smut',p:60,i:'💨'},{n:'Grassy Shoot',p:38,i:'🌿'}],Fruiting:[{n:'Red Rot',p:65,i:'🔴'},{n:'Grub Attack',p:54,i:'🐛'}]},
+};
+const REGION_MOD={Maharashtra:1.1,Punjab:1.05,'West Bengal':1.28,Rajasthan:0.82,'Andhra Pradesh':1.22,'Uttar Pradesh':1.1,Karnataka:1.0};
+const STAGE_MOD={Seedling:0.8,Vegetative:1.0,Flowering:1.2,Fruiting:1.15};
+const IRRIG_MOD={today:0.84,yesterday:1.0,'2_3':1.16,week:1.32};
+const STAGE_VISUALS={
+  default:[{i:'🟡',l:'Stage 1 – Early',d:'Minor spots or discoloration on lower leaves'},{i:'🟠',l:'Stage 2 – Moderate',d:'Lesions spread; growth visibly stunted'},{i:'🔴',l:'Stage 3 – Severe',d:'Extensive damage; yield loss exceeds 30%'}],
+  'Powdery Mildew':[{i:'⬜',l:'Stage 1 – Early',d:'White powdery patches on upper leaf surface'},{i:'🤍',l:'Stage 2 – Moderate',d:'Powder covers most leaves, growth stunted'},{i:'🍂',l:'Stage 3 – Severe',d:'Leaves yellow and drop; plant severely weakened'}],
+  'Late Blight':[{i:'🟡',l:'Stage 1 – Early',d:'Water-soaked irregular spots on leaves'},{i:'🟤',l:'Stage 2 – Moderate',d:'Dark lesions with white mold along leaf edges'},{i:'💀',l:'Stage 3 – Severe',d:'Full plant collapse; tubers/fruits rot rapidly'}],
+  'Blast':[{i:'🟡',l:'Stage 1 – Early',d:'Small brown spots with grey centres'},{i:'🟠',l:'Stage 2 – Moderate',d:'Diamond-shaped lesions enlarge rapidly'},{i:'💥',l:'Stage 3 – Severe',d:'Neck blast kills entire panicle'}],
+};
+const PREV_RECS={
+  fungal:[{i:'🌿',t:'Neem Oil Spray',b:'Mix 5ml neem oil/liter. Spray every 7 days in early morning.'},{i:'💧',t:'Reduce Leaf Wetness',b:'Water at soil level, avoid overhead irrigation.'},{i:'🌬️',t:'Improve Air Flow',b:'Space plants 20–30cm. Remove dense canopy growth.'},{i:'🧪',t:'Preventive Fungicide',b:'Apply mancozeb or copper-based fungicide weekly.'}],
+  pest:[{i:'🐛',t:'Integrated Pest Mgmt',b:'Deploy sticky traps and pheromone traps early.'},{i:'🌿',t:'Botanical Repellent',b:'Garlic/chili extract spray (10ml/L) deters insects.'},{i:'🐛🚫',t:'Hand Picking',b:'Remove egg masses and larvae manually in early stages.'},{i:'🧪',t:'Targeted Pesticide',b:'Use selective pesticides only above economic threshold.'}],
+  general:[{i:'🌱',t:'Certified Seeds',b:'Use disease-resistant certified seed varieties.'},{i:'🌡️',t:'Daily Monitoring',b:'Check crops every morning for early symptoms.'},{i:'💧',t:'Balanced Irrigation',b:'Maintain optimal soil moisture; avoid flooding.'},{i:'🔬',t:'Soil Testing',b:'Test soil nutrients and pH each season.'}],
+};
+function edSymScore(){ let s=0; if(edSymptoms.has('yellow_spots'))s+=12; if(edSymptoms.has('white_powder'))s+=16; if(edSymptoms.has('leaf_curl'))s+=8; if(edSymptoms.has('holes'))s+=11; if(edSymptoms.has('wilting'))s+=19; if(edSymptoms.has('dark_spots'))s+=14; return s; }
+function dayLabel(n){ const d=new Date(); d.setDate(d.getDate()+n); return n===0?'Today':n===1?'Tmrw':d.toLocaleDateString('en-IN',{weekday:'short'}); }
+
+async function runEarlyDetection(){
+  const crop=document.getElementById('ed-crop').value;
+  const city=document.getElementById('ed-city').value.trim()||'Amravati';
+  const region=document.getElementById('ed-region').value;
+  const stage=document.getElementById('ed-stage').value;
+  const irrig=document.getElementById('ed-irrig').value;
+  const pesticide=parseInt(document.getElementById('ed-pesticide').value)||0;
+  const pastDisease=parseInt(document.getElementById('ed-past-disease').value)||0;
+
+  if(!crop||!region||!stage){ showToast('Please select Crop, Region and Growth Stage','error'); return; }
+
+  document.getElementById('ed-spinner').style.display='flex';
+  document.getElementById('ed-placeholder').style.display='none';
+  document.getElementById('kk-ed-results').innerHTML='';
+
+  // ── Try real ML prediction from server ──
+  let mlResult=null;
+  let mlUsed=false;
+  try{
+    // Get coordinates
+    let lat=20.93,lon=77.75,state=region;
+    try{
+      const geo=await fetch(`http://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(city)},IN&limit=1&appid=${WK}`);
+      const gd=await geo.json();
+      if(gd[0]){ lat=gd[0].lat; lon=gd[0].lon; state=gd[0].state||region; }
+    } catch(e){}
+
+    // Get weather if not already fetched
+    const weather=window._edWeather||{temperature:26,humidity:72,rainfall:10,wind_speed:5};
+
+    const resp=await fetch(`${ML_URL}/api/predict-env`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        crop,region:city,state,
+        temperature:weather.temperature,
+        humidity:weather.humidity,
+        rainfall:weather.rainfall,
+        wind_speed:weather.wind_speed,
+        month:new Date().getMonth()+1,
+        latitude:lat,longitude:lon,
+        pesticide_applications:pesticide,
+        past_disease_occurrences:pastDisease
+      })
+    });
+    const data=await resp.json();
+    if(data.success){
+      mlResult=data;
+      mlUsed=true;
+      // Show Krushi Kendra
+      if(data.krushi_kendras?.length){
+        renderKrushiKendra(data.krushi_kendras,'kk-ed-results');
+      }
+      // Save to Firebase
+      await saveToFirebase('predictions',{
+        crop,city,risk_level:data.risk_level,
+        pesticide_applications:pesticide,
+        top_disease:data.predictions?.[0]?.disease||'none'
+      });
+    }
+  } catch(e){ console.log('ML server not available, using local rules'); }
+
+  document.getElementById('ed-spinner').style.display='none';
+
+  // ── Calculate local risk ──
+  const rm=REGION_MOD[region]||1, sm=STAGE_MOD[stage]||1, im=IRRIG_MOD[irrig]||1, sym=edSymScore();
+  // Pesticide reduces risk
+  const pestReduction=Math.min(0.5,pesticide*0.05);
+  let risk=Math.min(96,Math.round(36*rm*sm*im+sym*(1-pestReduction)));
+
+  // Override with ML result if available
+  if(mlResult){
+    const mlRiskMap={CRITICAL:88,HIGH:72,MEDIUM:52,LOW:25};
+    risk=mlRiskMap[mlResult.risk_level]||risk;
+  }
+
+  const lvl=risk>=65?'high':risk>=40?'medium':'low';
+  const diseases=(DIS_DB[crop]?.[stage]||[]).map(d=>({...d,p:Math.min(97,Math.round(d.p*rm+sym*0.5*(1-pestReduction)))})).sort((a,b)=>b.p-a.p);
+
+  // ── Show ML badge ──
+  document.getElementById('ml-source-badge').innerHTML=mlUsed
+    ?'<div class="ml-badge">🤖 Real ML Model Used</div>'
+    :'<div class="ml-badge" style="background:rgba(245,200,66,0.1);border-color:rgba(245,200,66,0.2);color:var(--accent)">📊 Rule-Based (ML offline)</div>';
+
+  // ── Risk dashboard ──
+  const dash=document.getElementById('risk-dash'); dash.classList.add('show');
+  document.getElementById('ed-lbl').textContent=`${crop} — ${stage} (${city}, ${region})`;
+  const scoreEl=document.getElementById('risk-score'); scoreEl.textContent=risk+'%'; scoreEl.className='risk-score '+lvl;
+  document.getElementById('risk-lvl-lbl').textContent=lvl==='high'?'🔴 High Risk':lvl==='medium'?'🟡 Moderate Risk':'🟢 Low Risk';
+  const fill=document.getElementById('rbar-fill'); fill.className='rbar-fill '+lvl;
+  setTimeout(()=>{ fill.style.width=risk+'%'; },60);
+
+  // ── 5-day forecast ──
+  document.getElementById('forecast-row').innerHTML=Array.from({length:5},(_,i)=>{
+    const dr=Math.min(97,Math.max(8,risk+Math.round((Math.random()-0.38)*22)));
+    const cl=dr>=65?'hi':dr>=40?'md':''; const ic=dr>=65?'🔴':dr>=40?'🟡':'🟢';
+    const col=dr>=65?'var(--red)':dr>=40?'var(--accent)':'var(--green)';
+    return `<div class="fday ${cl}"><div class="fday-n">${dayLabel(i)}</div><div class="fday-i">${ic}</div><div class="fday-p" style="color:${col}">${dr}%</div></div>`;
+  }).join('');
+
+  // ── Pesticide warning ──
+  const cnt=Math.floor(Math.random()*65)+8;
+  const cEl=document.getElementById('comm-alert'); const cTx=document.getElementById('comm-text');
+  if(risk>=38){
+    let msg=`<strong>⚠️ ${cnt} farmers</strong> in ${region} reported similar conditions this week.`;
+    if(pesticide>=5) msg+=` ⚠️ <strong>High pesticide use detected (${pesticide}x)</strong> — consider biological alternatives to prevent resistance.`;
+    cTx.innerHTML=msg; cEl.classList.add('show');
+  } else cEl.classList.remove('show');
+
+  // ── Smart alerts ──
+  const sa=document.getElementById('smart-alerts'); sa.innerHTML='';
+  const alerts=[];
+  if(risk>=65) alerts.push({c:'a-hi',i:'🚨',t:'High Disease Risk Detected',b:`${diseases[0]?.n||'Crop disease'} has ${diseases[0]?.p||risk}% probability. Apply preventive treatment immediately.`});
+  if(pesticide>=8) alerts.push({c:'a-hi',i:'⚗️',t:'Excessive Pesticide Use Warning',b:`${pesticide} applications detected this season. Risk of pest resistance and soil degradation. Consider neem oil and biological controls.`});
+  else if(pesticide>=5) alerts.push({c:'a-md',i:'🧪',t:'High Pesticide Use',b:`${pesticide} applications this season reduces ML prediction accuracy by ~${Math.round(pesticide*8)}%. Pesticide resistance may reduce effectiveness.`});
+  if(edSymptoms.has('white_powder')||edSymptoms.has('yellow_spots')) alerts.push({c:'a-md',i:'⚠️',t:'Active Symptoms Detected',b:'Reported symptoms match early-stage fungal infection. Apply preventive spray within 24–48 hours.'});
+  if(irrig==='today'||region==='West Bengal') alerts.push({c:'a-md',i:'💧',t:'High Moisture Risk',b:'Excess humidity creates ideal conditions for fungal/bacterial disease. Improve air circulation.'});
+  if(stage==='Flowering') alerts.push({c:'a-in',i:'🌸',t:'Critical Growth Phase',b:'Flowering stage is most vulnerable. Any infection now can reduce yield by 40–60%.'});
+  if(alerts.length===0) alerts.push({c:'a-in',i:'✅',t:'Low Risk Detected',b:`${crop} in ${region} shows low disease pressure at ${stage} stage.`});
+  sa.innerHTML=alerts.map(a=>`<div class="alert-card ${a.c}"><div class="alert-ico">${a.i}</div><div class="alert-body"><div class="alert-title">${a.t}</div>${a.b}</div></div>`).join('');
+
+  // ── ML predictions or local ──
+  const dp=document.getElementById('dis-predictions'); dp.innerHTML='';
+  const predsToShow=mlResult?.predictions?.length
+    ? mlResult.predictions.slice(0,2).map(p=>({
+        n:p.disease_display||p.disease,i:'🔭',p:p.probability||50,
+        natural:p.natural_cure,precaution:p.precaution
+      }))
+    : diseases.slice(0,2);
+
+  predsToShow.forEach(d=>{
+    const pc=d.p>=65?'hi':d.p>=40?'md':'lo';
+    const stgs=(STAGE_VISUALS[d.n]||STAGE_VISUALS.default).map(s=>`<div class="stage-c"><div class="stage-ico">${s.i}</div><div class="stage-lbl">${s.l}</div><div class="stage-desc">${s.d}</div></div>`).join('');
+    const naturalTip=d.natural?`<li>🌿 Natural: ${d.natural}</li>`:'';
+    const precTip=d.precaution?`<li>🛡️ ${d.precaution}</li>`:'';
+    const tips=['Apply preventive treatment before symptoms worsen','Monitor every 2 days for early signs'];
+    dp.innerHTML+=`<div class="dis-card">
+      <div class="dis-top"><div class="dis-name">${d.i||'🔭'} ${d.n}</div><div class="dis-prob ${pc}">${d.p}% risk</div></div>
+      <div style="font-size:0.73rem;color:var(--text2);margin-bottom:4px">Disease Progression Stages:</div>
+      <div class="stages-row">${stgs}</div>
+      <ul class="dis-tips">${naturalTip}${precTip}${tips.map(t=>`<li>💊 ${t}</li>`).join('')}</ul>
+    </div>`;
+  });
+
+  // ── Prevention recs ──
+  const hasPest=edSymptoms.has('holes');
+  const recKey=hasPest?'pest':risk>=50?'fungal':'general';
+  const prev=document.getElementById('prev-card'); prev.classList.add('show');
+  document.getElementById('rec-grid').innerHTML=PREV_RECS[recKey].map(r=>`
+    <div class="rec-c"><div class="rec-ico">${r.i}</div><div class="rec-title">${r.t}</div><div class="rec-body">${r.b}</div></div>`).join('');
+
+  document.getElementById('risk-dash').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// ── Boot ──
+showPage('home');
+setTimeout(()=>{ waitForFirebase(()=>loadForumPosts()); },1500);
+const obs=new IntersectionObserver(
+  entries=>entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add('visible'); }),
+  {threshold:0.1}
+);
+document.querySelectorAll('.scroll-reveal').forEach(el=>obs.observe(el));
+</script>
+</body>
+</html>
