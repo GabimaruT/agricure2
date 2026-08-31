@@ -3,7 +3,7 @@ services:
     name: agricure-backend
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: python backend/server.py
+    startCommand: gunicorn backend.server:app
     envVars:
       - key: PORT
         value: 5000
